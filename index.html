@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="リンク帳">
+<meta name="theme-color" content="#f6f4fa">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<title>声優出演リンク帳</title>
+
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;700&family=IBM+Plex+Mono:wght@500&display=swap" media="print" onload="this.media='all'">
+<style>
+:root{
+  --bg:#f6f4fa; --surface:#ffffff; --ink:#221d33; --muted:#6d6782; --line:#dcd6ea; --accent:#d6336c;
+  --k-video:#3b6fd9; --k-selfie:#d6336c; --k-live:#0f8f7a; --k-other:#7a6a9b;
+  --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#16131f; --surface:#211d2e; --ink:#eeeaf7; --muted:#a39cba; --line:#3a3450; --accent:#ff6b9a;
+  --k-video:#7ea2ff; --k-selfie:#ff6b9a; --k-live:#4fd1b5; --k-other:#b9a8de; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 64px;display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(24px,6vw,34px);line-height:1.15;margin:0;letter-spacing:.02em}
+.count{font-family:var(--f-mono);color:var(--muted);font-size:13px}
+.filters{position:sticky;top:0;z-index:2;background:var(--bg);padding:8px 0 10px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips.clamp{max-height:76px;overflow:hidden}
+.more{justify-self:start;border:0;background:transparent;color:var(--accent);font:inherit;font-size:12px;padding:0 4px;cursor:pointer}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 13px;font:inherit;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.search{display:flex;gap:8px}
+input,select{font:inherit;color:inherit;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;font-size:16px;min-width:0}
+.search input{flex:1}
+.list{display:grid;gap:12px}
+.stub{display:grid;grid-template-columns:72px minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.date{display:grid;place-content:center;text-align:center;padding:10px 4px;border-right:2px dashed var(--line);font-family:var(--f-mono);color:var(--muted);position:relative}
+.date b{display:block;font-size:18px;color:var(--ink);line-height:1.1}
+.date small{font-size:11px}
+.date::before,.date::after{content:"";position:absolute;right:-9px;width:16px;height:16px;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.date::before{top:-9px}.date::after{bottom:-9px}
+.body{padding:12px 14px;display:grid;gap:5px;min-width:0}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}
+.kind{border-radius:4px;padding:1px 8px;font-weight:700;color:var(--surface);background:var(--k-other)}
+.kind[data-k="出演動画"]{background:var(--k-video)}
+.kind[data-k="SNS自撮り"]{background:var(--k-selfie)}
+.kind[data-k="配信・生放送"]{background:var(--k-live)}
+.person{font-weight:700}
+.plat{color:var(--muted);font-family:var(--f-mono)}
+.title{font-size:16px;font-weight:700;overflow-wrap:anywhere}
+.title a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+.title a:active,.title a:hover{color:var(--accent);border-color:var(--accent)}
+.memo{color:var(--muted);font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.empty{border:2px dashed var(--line);border-radius:14px;padding:28px 20px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+/* スマホで横にはみ出さないように固定 */
+html,body{max-width:100%;overflow-x:hidden}
+.wrap,.filters,.list{grid-template-columns:minmax(0,1fr)}
+.wrap>*,.filters>*,.list>*{min-width:0}
+.search select{flex:0 0 auto;width:auto}
+/* 編集・削除 */
+.acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 13px;font:inherit;font-size:12px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:700}
+.btn.danger{border-color:var(--accent);color:var(--accent);font-weight:700}
+.btn[disabled]{opacity:.5;cursor:default}
+.edit{display:grid;gap:8px}
+.edit label{display:grid;gap:2px;font-size:11px;color:var(--muted);letter-spacing:.04em;min-width:0}
+.edit input,.edit select,.edit textarea{width:100%;font-size:16px;padding:6px 8px}
+.edit textarea{font:inherit;font-size:16px;color:inherit;border:1px solid var(--line);background:var(--bg);border-radius:8px;min-height:56px;resize:vertical}
+.edit .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.edit .url{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.note{font-size:12px;color:var(--muted)}
+.note.err{color:var(--accent)}
+.head-right{display:flex;align-items:center;gap:10px}
+.add-btn{font-size:14px;padding:6px 16px}
+#addArea{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px}
+#addArea h2{margin:0 0 8px;font-size:15px}
+.saved-note{border:1px solid var(--k-live);color:var(--k-live);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700}
+.tagpick{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.tagpick button{border:1px dashed var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}
+.tagpick button[aria-pressed="true"]{border-style:solid;border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;max-width:100%}
+/* iPhone の Safari でも確実に大きさが決まるよう、高さは padding で作る */
+.thumbs .pic{position:relative;display:block;width:96px;max-width:100%;border-radius:8px;overflow:hidden;background:var(--line);cursor:zoom-in;-webkit-tap-highlight-color:transparent}
+.thumbs .pic::before{content:"";display:block;padding-top:100%}
+.thumbs .pic.wide{width:100%;max-width:320px}
+.thumbs .pic.wide::before{padding-top:56.25%}
+.thumbs .pic img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block}
+.thumbs .pic:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none !important}
+.lightbox{position:fixed;inset:0;z-index:10;background:rgba(10,8,16,.92);display:grid;place-items:center;padding:16px}
+.lightbox img{max-width:100%;max-height:calc(100vh - 120px);object-fit:contain;border-radius:6px}
+.lightbox .lb-bar{position:fixed;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:10px}
+.lightbox .lb-bar button,.lightbox .lb-bar a{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:7px 16px;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
+.add-thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.add-thumbs img{width:64px;height:64px;object-fit:cover;border-radius:6px;background:var(--line)}
+.search{flex-wrap:wrap}
+.search input{flex:1 1 160px}
+.search .toggle{flex:0 0 auto}
+.grp{border:1px solid var(--line);border-radius:4px;padding:0 7px;color:var(--muted);background:transparent;font:inherit;font-size:12px;cursor:pointer}
+.grp:hover{border-color:var(--ink);color:var(--ink)}
+.stub.group{border-color:var(--ink)}
+.group-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.group-head .gname{font-size:17px;font-weight:700}
+.group-head .gcount{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.entries{display:grid;gap:0;border-top:1px dashed var(--line)}
+.entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)}
+.entry .etitle{font-size:14px;font-weight:700;overflow-wrap:anywhere;min-width:0}
+.entry .etitle a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+.entry .emeta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--muted)}
+.entry .btn{padding:2px 10px;font-size:11px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;z-index:5;max-width:calc(100% - 32px)}
+
+/* GitHub Pages 版のみ */
+html.needkey .wrap{display:none}
+.keyform{max-width:420px;margin:15vh auto 0;padding:0 16px;display:grid;gap:12px}
+.keyform h1{font-family:var(--f-display);font-weight:400;font-size:28px;margin:0}
+.keyform p{margin:0;color:var(--muted);font-size:14px}
+.keyform input{font-size:16px}
+html.syncing .count::after{content:"・更新中";color:var(--muted)}
+html.offline .count::after{content:"・オフライン（前回の内容）";color:var(--accent)}
+</style>
+</head>
+<body>
+<form class="keyform" id="keyForm" hidden>
+  <h1>声優出演リンク帳</h1>
+  <p id="keyMsg">はじめに合言葉を入力してください（Apps Script の setup を実行したときにログに出た32文字の英数字）。この端末に保存され、次からは入力不要です。</p>
+  <input id="keyInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="合言葉">
+  <button class="btn primary" type="submit">はじめる</button>
+</form>
+<div class="wrap">
+  <header>
+    <h1>声優出演リンク帳</h1>
+    <div class="head-right">
+      <span class="count" id="count"></span>
+      <button class="btn primary add-btn" type="button" id="addBtn">＋ 追加</button>
+    </div>
+  </header>
+  <section id="addArea" hidden></section>
+  <section class="filters">
+    <div class="chips" id="kindChips"></div>
+    <div class="chips" id="personChips"></div>
+    <button class="more" type="button" id="personMore" hidden></button>
+    <div class="chips" id="groupChips"></div>
+    <button class="more" type="button" id="groupMore" hidden></button>
+    <div class="search">
+      <button class="chip toggle" type="button" id="groupToggle" aria-pressed="false">まとめて表示</button>
+      <input id="q" type="search" placeholder="タイトル・メモ・タグで検索">
+      <select id="sort" aria-label="並び順"><option value="desc">新しい順</option><option value="asc">古い順</option></select>
+    </div>
+  </section>
+  <section class="list" id="list"></section>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="lightbox" id="lightbox" hidden></div>
+<script>
+(function(){
+  const API = "https://script.google.com/macros/s/AKfycbyfh3ZNTmuZ0aYi3lRmqZfzEgsNYxnNwxYUrXcAx10BcJTTgn3J75eeu5SaiTtzyRO21A/exec";
+  const KEY_STORE = "linkbook-key", CACHE_STORE = "linkbook-cache";
+  const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const set = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const del = k => { try { localStorage.removeItem(k); } catch (e) {} };
+
+  // 合言葉：?key= で渡されたら端末に保存して、アドレスバーからは消す
+  const qs = new URLSearchParams(location.search);
+  let key = get(KEY_STORE) || "";
+  if (qs.get("key")) {
+    key = qs.get("key").trim();
+    set(KEY_STORE, key);
+    qs.delete("key");
+  }
+  const add = /^https?:\/\//.test(qs.get("add") || "") ? qs.get("add") : "";
+  qs.delete("add");
+  try { history.replaceState(null, "", location.pathname + (qs.toString() ? "?" + qs : "")); } catch (e) {}
+
+  let cache = null;
+  try { cache = JSON.parse(get(CACHE_STORE) || "null"); } catch (e) {}
+  window.BOOT = { key: key, add: add, rows: cache ? cache.rows : [], readings: cache ? cache.readings : {} };
+  window.LINKBOOK_LOADING = true;
+
+  function saveCache(rows, readings){
+    const prev = (() => { try { return JSON.parse(get(CACHE_STORE) || "null"); } catch (e) { return null; } })();
+    set(CACHE_STORE, JSON.stringify({ rows: rows, readings: readings || (prev && prev.readings) || {}, at: Date.now() }));
+  }
+  window.LINKBOOK_SAVE_CACHE = saveCache;
+
+  // google.script.run と同じ書き方で Apps Script を呼ぶ
+  function runner(ok, ng){
+    const r = {
+      withSuccessHandler: fn => runner(fn, ng),
+      withFailureHandler: fn => runner(ok, fn)
+    };
+    ["apiAdd", "apiUpdate", "apiDelete", "apiInfo", "apiRefreshImages"].forEach(name => {
+      r[name] = (...args) => {
+        fetch(API, { method: "POST", body: JSON.stringify({ action: name, key: args[0], args: args.slice(1) }) })
+          .then(res => res.json())
+          .then(res => { if (res && res.ok && res.rows) saveCache(res.rows); ok && ok(res); })
+          .catch(err => { ng && ng(err); });
+      };
+    });
+    return r;
+  }
+  window.google = { script: { run: runner() } };
+
+  // 最新データを取ってきて差し替える
+  window.LINKBOOK_REFRESH = function(){
+    document.documentElement.classList.add("syncing");
+    fetch(API + "?action=list&key=" + encodeURIComponent(key))
+      .then(res => res.json())
+      .then(d => {
+        window.LINKBOOK_LOADING = false;
+        document.documentElement.classList.remove("syncing");
+        if (d && d.ok) {
+          saveCache(d.rows, d.readings);
+          window.__linkbook && window.__linkbook.setData(d.rows, d.readings);
+        } else if (d && d.error === "bad_key") {
+          del(KEY_STORE); del(CACHE_STORE);
+          showKeyForm("合言葉が違うようです。もう一度入力してください。");
+        }
+      })
+      .catch(() => {
+        window.LINKBOOK_LOADING = false;
+        document.documentElement.classList.remove("syncing");
+        document.documentElement.classList.add("offline");
+        window.__linkbook && window.__linkbook.render();
+      });
+  };
+
+  // 合言葉の入力画面
+  function showKeyForm(msg){
+    document.documentElement.classList.add("needkey");
+    const box = document.getElementById("keyForm");
+    if (!box) return;
+    box.hidden = false;
+    if (msg) document.getElementById("keyMsg").textContent = msg;
+  }
+  window.LINKBOOK_NEED_KEY = !key;
+  window.LINKBOOK_SHOW_KEY = showKeyForm;
+})();
+</script>
+<script>
+(function(){
+  let ROWS = window.BOOT.rows;
+  const KEY = window.BOOT.key;
+  const ADD_URL = window.BOOT.add;
+  let READINGS = window.BOOT.readings;
+  // 五十音順（よみが登録されている人を先に、未登録の人は後ろ）
+  const sortPeople = names => names.slice().sort((a, b) => {
+    const ya = READINGS[a] || "", yb = READINGS[b] || "";
+    if (!!ya !== !!yb) return ya ? -1 : 1;
+    return (ya || a).localeCompare(yb || b, "ja");
+  });
+  const KINDS = ["出演動画","SNS自撮り","配信・生放送","その他"];
+  const split = v => String(v || "").split(/[、,，]/).map(x => x.trim()).filter(Boolean);
+  const ytId = u => (String(u).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|live\/))([\w-]{11})/) || [])[1];
+  // X の画像は大きさを指定できる（small / large）
+  const twSize = (u, size) => {
+    try {
+      const x = new URL(u);
+      if (x.hostname !== "pbs.twimg.com") return u;
+      x.searchParams.set("name", size);
+      return x.href;
+    } catch (e) { return u; }
+  };
+  // カードに出す画像：YouTube はサムネイル、それ以外は保存した画像URL
+  const pics = r => {
+    const id = ytId(r.url);
+    if (id) return [{ thumb: "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg", full: "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg", wide: true }];
+    const list = String(r.images || "").split(/\s+/).filter(u => /^https:\/\//.test(u) && !/static\.cdninstagram\.com|\/rsrc\.php\//.test(u));
+    // 出演動画・配信のサムネイル（1枚だけのもの）は横長で表示
+    const wide = list.length === 1 && (r.kind === "出演動画" || r.kind === "配信・生放送");
+    return list.map(u => ({ thumb: twSize(u, "small"), full: twSize(u, "large"), wide: wide, row: r.row, src: r.url }));
+  };
+  const prep = () => ROWS.forEach(r => { r.people = split(r.person); r.pics = pics(r); r.group = String(r.group || "").trim(); });
+  prep();
+  const $ = id => document.getElementById(id);
+  const state = {kind:"すべて", person:"すべて", group:"すべて", grouped:false, q:"", sort:"desc"};
+  try { Object.assign(state, JSON.parse(localStorage.getItem("seiyu-filter") || "{}")); } catch(e) {}
+  const save = () => { try { localStorage.setItem("seiyu-filter", JSON.stringify(state)); } catch(e) {} };
+  $("q").value = state.q; $("sort").value = state.sort;
+  let editingRow = null;
+
+  function el(tag, attrs, ...kids){
+    const n = document.createElement(tag);
+    for (const k in attrs || {}) { if (k === "text") n.textContent = attrs[k]; else if (k === "class") n.className = attrs[k]; else n.setAttribute(k, attrs[k]); }
+    kids.forEach(c => c && n.append(c));
+    return n;
+  }
+  function safeUrl(u){ try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : "#"; } catch(e) { return "#"; } }
+  function chip(label, active, fn){ const b = el("button", {class:"chip", type:"button", "aria-pressed":String(active), text:label}); b.onclick = fn; return b; }
+  let toastTimer;
+  function toast(t){ const n = $("toast"); n.textContent = t; n.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => n.hidden = true, 2500); }
+
+  // サーバー（Apps Script）を呼ぶ
+  function call(fn, args, onDone, onFail){
+    const runner = google.script.run
+      .withSuccessHandler(res => {
+        if (res && res.ok) { ROWS = res.rows; prep(); onDone && onDone(); render(); }
+        else {
+          const msg = res && res.error === "moved" ? "スプレッドシート側で行が動いたようです。ページを開き直してください"
+                    : res && res.error === "bad_key" ? "合言葉が違うため変更できません"
+                    : "変更できませんでした";
+          onFail && onFail(msg);
+        }
+      })
+      .withFailureHandler(() => onFail && onFail("通信に失敗しました。もう一度お試しください"));
+    runner[fn].apply(runner, [KEY].concat(args));
+  }
+
+  function render(){
+    const kc = $("kindChips"); kc.replaceChildren();
+    ["すべて", ...KINDS].forEach(k => kc.append(chip(k, state.kind === k, () => { state.kind = k; save(); render(); })));
+    const people = sortPeople([...new Set([].concat(...ROWS.map(r => r.people)))]);
+    if (state.person !== "すべて" && !people.includes(state.person)) state.person = "すべて";
+    const pc = $("personChips"); pc.replaceChildren();
+    if (people.length) ["すべて", ...people].forEach(p => pc.append(chip(p === "すべて" ? "出演者：すべて" : p, state.person === p, () => { state.person = p; save(); render(); })));
+    const groups = allGroups();
+    if (state.group !== "すべて" && !groups.includes(state.group)) state.group = "すべて";
+    const gc = $("groupChips"); gc.replaceChildren();
+    if (groups.length) ["すべて", ...groups].forEach(g => gc.append(chip(g === "すべて" ? "まとめ：すべて" : g, state.group === g, () => { state.group = g; save(); render(); })));
+    gc.hidden = !groups.length;
+    $("groupToggle").setAttribute("aria-pressed", String(state.grouped));
+    clampRow("personChips", "personMore", "people");
+    clampRow("groupChips", "groupMore", "groups");
+
+    const q = state.q.trim().toLowerCase();
+    const rows = ROWS.filter(r =>
+      r.row === editingRow || (
+      (state.kind === "すべて" || r.kind === state.kind) &&
+      (state.person === "すべて" || r.people.includes(state.person)) &&
+      (state.group === "すべて" || r.group === state.group) &&
+      (!q || [r.title, r.memo, r.person, r.tags, r.url, r.service, r.group].join(" ").toLowerCase().includes(q)))
+    ).sort((a,b) => {
+      const c = (a.date || a.created).localeCompare(b.date || b.created) || a.row - b.row;
+      return state.sort === "asc" ? c : -c;
+    });
+
+    $("count").textContent = ROWS.length ? rows.length + " / " + ROWS.length + " 件" : "0 件";
+    const list = $("list"); list.replaceChildren();
+    if (!ROWS.length && window.LINKBOOK_LOADING) { list.append(el("div", {class:"empty"}, el("strong", {text:"読み込んでいます…"}), document.createTextNode("少しお待ちください。"))); return; }
+    if (!ROWS.length) { list.append(el("div", {class:"empty"}, el("strong", {text:"まだリンクがありません"}), document.createTextNode("Chrome で保存したリンクがここに並びます。"))); return; }
+    if (!rows.length) { list.append(el("div", {class:"empty"}, el("strong", {text:"条件に合うリンクがありません"}), document.createTextNode("絞り込みや検索語を変えてみてください。"))); return; }
+    if (!state.grouped) { rows.forEach(r => list.append(r.row === editingRow ? editor(r) : stub(r))); return; }
+
+    // まとめて表示：同じまとめ名の投稿を1枚のカードに（並び順は先頭の投稿の位置）
+    const items = [], byName = new Map();
+    rows.forEach(r => {
+      if (r.group && r.row !== editingRow) {
+        if (!byName.has(r.group)) { const it = { name: r.group, entries: [] }; byName.set(r.group, it); items.push(it); }
+        byName.get(r.group).entries.push(r);
+      } else items.push({ one: r });
+    });
+    items.forEach(it => {
+      if (it.one) list.append(it.one.row === editingRow ? editor(it.one) : stub(it.one));
+      else if (it.entries.length === 1) list.append(stub(it.entries[0]));
+      else list.append(groupCard(it.name, it.entries));
+    });
+  }
+
+  // 出演者・まとめのボタンが多いときは2行までにして「すべて表示」で広げる
+  const opened = { people: false, groups: false };
+  function clampRow(rowId, btnId, key){
+    const row = $(rowId), btn = $(btnId);
+    row.classList.remove("clamp");
+    btn.hidden = true;
+    if (row.hidden || !row.children.length) return;
+    row.classList.add("clamp");
+    const overflow = row.scrollHeight > row.clientHeight + 2;
+    if (!overflow) { row.classList.remove("clamp"); return; }
+    if (opened[key]) row.classList.remove("clamp");
+    btn.hidden = false;
+    btn.textContent = opened[key] ? "たたむ ▴" : "すべて表示 ▾";
+    btn.onclick = () => { opened[key] = !opened[key]; clampRow(rowId, btnId, key); };
+  }
+
+  function allGroups(){
+    const last = {};
+    ROWS.forEach(r => { if (!r.group) return; const d = r.date || r.created; if (!last[r.group] || d > last[r.group]) last[r.group] = d; });
+    return Object.keys(last).sort((a, b) => (last[b] > last[a] ? 1 : last[b] < last[a] ? -1 : 0));
+  }
+
+  function groupCard(name, entries){
+    const dates = entries.map(e => e.date).filter(Boolean).sort();
+    const first = { date: dates.length ? (state.sort === "asc" ? dates[0] : dates[dates.length - 1]) : "" };
+    const people = [...new Set([].concat(...entries.map(e => e.people)))];
+    const kinds = [...new Set(entries.map(e => e.kind || "その他"))];
+
+    const head = el("div", {class:"group-head"}, el("span", {class:"gname", text:name}), el("span", {class:"gcount", text:entries.length + " 件"}));
+    const meta = el("div", {class:"meta"});
+    kinds.forEach(k => meta.append(el("span", {class:"kind", "data-k":k, text:k})));
+    people.forEach(p => meta.append(el("span", {class:"person", text:p})));
+    const body = el("div", {class:"body"}, head, meta);
+
+    const allPics = [].concat(...entries.map(e => e.pics.map(p => Object.assign({ url: e.url }, p))));
+    if (allPics.length) {
+      const box = el("div", {class:"thumbs"});
+      allPics.forEach((p, i) => {
+        const b = thumbEl(p);
+        b.onclick = () => openLightbox({ pics: allPics, url: p.url }, i);
+        box.append(b);
+      });
+      body.append(box);
+    }
+
+    const list = el("div", {class:"entries"});
+    entries.forEach(e => {
+      const edit = el("button", {class:"btn", type:"button", text:"編集"});
+      edit.onclick = () => { editingRow = e.row; render(); };
+      const emeta = el("div", {class:"emeta"});
+      if (e.date) emeta.append(el("span", {text:e.date.replace(/-/g, "/")}));
+      if (e.person) emeta.append(el("span", {text:e.people.join("・")}));
+      if (e.service) emeta.append(el("span", {text:e.service}));
+      list.append(el("div", {class:"entry"}, el("div", {class:"etitle"}, el("a", {href:safeUrl(e.url), target:"_blank", rel:"noopener", text:e.title || e.url})), edit, emeta));
+    });
+    body.append(list);
+    return el("article", {class:"stub group"}, dateCol(first), body);
+  }
+
+  function dateCol(r){
+    const d = (r.date || "").split("-");
+    const date = el("div", {class:"date"});
+    if (d.length === 3) date.append(el("small", {text:d[0]}), el("b", {text: (+d[1]) + "/" + (+d[2])}));
+    else date.append(el("small", {text:"日付なし"}));
+    return date;
+  }
+
+  function stub(r){
+    const meta = el("div", {class:"meta"}, el("span", {class:"kind", "data-k":r.kind, text:r.kind || "その他"}));
+    r.people.forEach(p => meta.append(el("span", {class:"person", text:p})));
+    if (r.service) meta.append(el("span", {class:"plat", text:r.service}));
+    (r.tags || "").split(/\s+/).filter(Boolean).forEach(t => meta.append(el("span", {class:"plat", text:"#" + t})));
+    if (r.group) {
+      const g = el("button", {class:"grp", type:"button", text:"まとめ：" + r.group, title:"このまとめだけ表示"});
+      g.onclick = () => { state.group = r.group; save(); render(); };
+      meta.append(g);
+    }
+    const body = el("div", {class:"body"}, meta, el("div", {class:"title"}, el("a", {href:safeUrl(r.url), target:"_blank", rel:"noopener", text:r.title || r.url})));
+    if (r.pics.length) {
+      const box = el("div", {class:"thumbs"});
+      r.pics.forEach((p, i) => {
+        const b = thumbEl(p);
+        b.onclick = () => openLightbox(r, i);
+        box.append(b);
+      });
+      body.append(box);
+    }
+    if (r.memo) body.append(el("div", {class:"memo", text:r.memo}));
+
+    const edit = el("button", {class:"btn", type:"button", text:"編集"});
+    edit.onclick = () => { editingRow = r.row; render(); };
+    const del = el("button", {class:"btn", type:"button", text:"削除"});
+    let armed = null;
+    del.onclick = () => {
+      if (!armed) {
+        del.textContent = "もう一度押すと削除"; del.classList.add("danger");
+        armed = setTimeout(() => { armed = null; del.textContent = "削除"; del.classList.remove("danger"); }, 4000);
+        return;
+      }
+      clearTimeout(armed); del.disabled = true; edit.disabled = true; del.textContent = "削除しています…";
+      call("apiDelete", [r.row, r.url], () => toast("削除しました"), msg => { toast(msg); del.disabled = false; edit.disabled = false; del.textContent = "削除"; del.classList.remove("danger"); armed = null; });
+    };
+    body.append(el("div", {class:"acts"}, edit, del));
+    return el("article", {class:"stub"}, dateCol(r), body);
+  }
+
+  function editor(r){
+    const id = s => "e-" + s;
+    const title = el("input", {type:"text", id:id("title")}); title.value = r.title;
+    const people = el("input", {type:"text", id:id("people"), placeholder:"名前A、名前B"}); people.value = r.people.join("、");
+    const kind = el("select", {id:id("kind")}); KINDS.forEach(k => { const o = el("option", {text:k}); if (k === r.kind) o.selected = true; kind.append(o); });
+    const date = el("input", {type:"date", id:id("date")}); date.value = /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
+    const tags = el("input", {type:"text", id:id("tags"), placeholder:"スペース区切り"}); tags.value = r.tags;
+    const memo = el("textarea", {id:id("memo")}); memo.value = r.memo;
+    const group = el("input", {type:"text", id:id("group"), placeholder:"例：MSP day1"}); group.value = r.group;
+    const note = el("div", {class:"note"});
+    const saveBtn = el("button", {class:"btn primary", type:"submit", text:"保存"});
+    const cancel = el("button", {class:"btn", type:"button", text:"キャンセル"});
+    cancel.onclick = () => { editingRow = null; render(); };
+
+    const form = el("form", {class:"edit"},
+      el("label", {text:"タイトル"}, title),
+      el("div", {class:"url", text:r.url}),
+      el("label", {text:"出演者（「、」区切り）"}, people),
+      el("div", {class:"two"}, el("label", {text:"種類"}, kind), el("label", {text:"日付"}, date)),
+      el("label", {text:"タグ（下の候補をタップで追加）"}, tags, tagPicker(tags)),
+      el("label", {text:"まとめ（同じイベントなどを1つにまとめる名前。空欄でも可）"}, group, groupPicker(group)),
+      el("label", {text:"メモ"}, memo),
+      el("div", {class:"acts"}, cancel, saveBtn),
+      note
+    );
+    form.addEventListener("submit", ev => {
+      ev.preventDefault();
+      saveBtn.disabled = true; cancel.disabled = true; note.className = "note"; note.textContent = "保存しています…";
+      const data = { title: title.value.trim(), person: split(people.value).join("、"), kind: kind.value, date: date.value, tags: tags.value.trim().split(/[\s　]+/).filter(Boolean).join(" "), memo: memo.value.trim(), group: group.value.trim() };
+      call("apiUpdate", [r.row, r.url, data], () => { editingRow = null; toast("保存しました"); }, msg => { note.className = "note err"; note.textContent = msg; saveBtn.disabled = false; cancel.disabled = false; });
+    });
+    return el("article", {class:"stub"}, dateCol(r), el("div", {class:"body"}, form));
+  }
+
+  // 画像が表示できなかった（期限切れなど）ときは、元の投稿から取り直す（1ページ表示につき1行1回まで）
+  const refreshed = new Set();
+  function refreshImages(row, url){
+    if (refreshed.has(row)) return;
+    refreshed.add(row);
+    google.script.run
+      .withSuccessHandler(res => { if (res && res.ok) { ROWS = res.rows; prep(); render(); } })
+      .withFailureHandler(() => {})
+      .apiRefreshImages(KEY, row, url);
+  }
+
+  // サムネイル1枚分（タップで拡大）
+  function thumbEl(p){
+    const img = el("img", {src:p.thumb, alt:"", referrerpolicy:"no-referrer", decoding:"async"});
+    const b = el("div", {class:"pic" + (p.wide ? " wide" : ""), role:"button", tabindex:"0", "aria-label":"画像を大きく表示"}, img);
+    img.onerror = () => { b.remove(); if (p.row) refreshImages(p.row, p.src); };
+    b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); b.click(); } });
+    return b;
+  }
+
+  // ---------- 画像の拡大表示 ----------
+  function openLightbox(r, index){
+    const lb = $("lightbox");
+    let i = index;
+    const draw = () => {
+      const p = r.pics[i];
+      const img = el("img", {src:p.full, alt:"", referrerpolicy:"no-referrer"});
+      img.onerror = () => { if (img.src !== p.thumb) img.src = p.thumb; };
+      const bar = el("div", {class:"lb-bar"});
+      if (r.pics.length > 1) {
+        const prev = el("button", {type:"button", text:"‹ 前"}); prev.onclick = e => { e.stopPropagation(); i = (i - 1 + r.pics.length) % r.pics.length; draw(); };
+        const next = el("button", {type:"button", text:"次 ›"}); next.onclick = e => { e.stopPropagation(); i = (i + 1) % r.pics.length; draw(); };
+        bar.append(prev, el("button", {type:"button", text:(i + 1) + " / " + r.pics.length}), next);
+      }
+      const orig = el("a", {href:safeUrl(p.url || r.url), target:"_blank", rel:"noopener", text:"元の投稿を開く"});
+      orig.onclick = e => e.stopPropagation();
+      const close = el("button", {type:"button", text:"閉じる"});
+      bar.append(orig, close);
+      lb.replaceChildren(img, bar);
+    };
+    lb.onclick = e => { if (e.target === lb || e.target.textContent === "閉じる") { lb.hidden = true; lb.replaceChildren(); } };
+    draw();
+    lb.hidden = false;
+  }
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { $("lightbox").hidden = true; $("lightbox").replaceChildren(); } });
+
+  // ---------- タグ候補（過去に使ったタグをタップで出し入れ） ----------
+  function allTags(){
+    const n = {};
+    ROWS.forEach(r => String(r.tags || "").split(/\s+/).filter(Boolean).forEach(t => { n[t] = (n[t] || 0) + 1; }));
+    return Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b, "ja"));
+  }
+  // 登録済みの名前がテキスト内に出てくるか探す（出演者の自動入力用）
+  function findPeople(text, known){
+    const squash = v => String(v || "").replace(/[\s\u3000・]/g, "");
+    const t = squash(text);
+    if (!t) return [];
+    const taken = [], hits = [];
+    known.filter(n => squash(n).length >= 2).sort((a, b) => squash(b).length - squash(a).length).forEach(name => {
+      const n = squash(name);
+      let i = t.indexOf(n);
+      while (i >= 0) {
+        const end = i + n.length;
+        if (!taken.some(([s0, e0]) => i < e0 && end > s0)) { taken.push([i, end]); hits.push([i, name]); return; }
+        i = t.indexOf(n, i + 1);
+      }
+    });
+    return hits.sort((a, b) => a[0] - b[0]).map(h => h[1]);
+  }
+
+  function groupPicker(input){
+    const box = el("div", {class:"tagpick"});
+    const draw = () => {
+      box.replaceChildren();
+      const cur = input.value.trim();
+      allGroups().slice(0, 12).forEach(g => {
+        const b = el("button", {type:"button", "aria-pressed":String(cur === g), text:g});
+        b.onclick = () => { input.value = cur === g ? "" : g; draw(); };
+        box.append(b);
+      });
+    };
+    input.addEventListener("input", draw);
+    draw();
+    return box;
+  }
+
+  function tagPicker(input){
+    const box = el("div", {class:"tagpick"});
+    const current = () => input.value.trim().split(/[\s　]+/).map(t => t.replace(/^#/, "")).filter(Boolean);
+    const draw = () => {
+      box.replaceChildren();
+      const cur = current();
+      allTags().forEach(t => {
+        const b = el("button", {type:"button", "aria-pressed":String(cur.includes(t)), text:"#" + t});
+        b.onclick = () => {
+          const now = current();
+          input.value = (now.includes(t) ? now.filter(x => x !== t) : now.concat(t)).join(" ");
+          draw();
+        };
+        box.append(b);
+      });
+    };
+    input.addEventListener("input", draw);
+    draw();
+    return box;
+  }
+
+  // ---------- 追加フォーム ----------
+  function today(){ const d = new Date(); const p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
+  function normalize(u){
+    try {
+      let s = String(u).trim().replace(/#.*$/, "");
+      const yt = s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|live\/))([\w-]{11})/);
+      if (yt) return "youtube:" + yt[1];
+      s = s.replace(/^https?:\/\/(www\.|mobile\.|m\.)?/, "").replace(/^twitter\.com/, "x.com");
+      s = s.replace(/^(x\.com\/[^/]+\/status\/\d+).*$/, "$1");
+      s = s.replace(/[?&](utm_[^&]+|s=\d+|t=[^&]+|igsh=[^&]+)/g, "").replace(/\?$/, "").replace(/\/$/, "");
+      return s.toLowerCase();
+    } catch (e) { return String(u); }
+  }
+
+  function openAdd(prefillUrl){
+    const area = $("addArea");
+    let lastPeople = "", lastKind = "出演動画";
+    try { lastPeople = localStorage.getItem("seiyu-last-people") || ""; lastKind = localStorage.getItem("seiyu-last-kind") || "出演動画"; } catch(e) {}
+    const url = el("input", {type:"url", id:"a-url", placeholder:"https://… を貼り付け", inputmode:"url"});
+    const title = el("input", {type:"text", id:"a-title"});
+    const people = el("input", {type:"text", id:"a-people", placeholder:"名前A、名前B", list:"a-people-list"});
+    const plist = el("datalist", {id:"a-people-list"});
+    [...new Set([].concat(...ROWS.map(r => r.people)))].forEach(p => plist.append(el("option", {value:p})));
+    people.value = lastPeople;
+    const kind = el("select", {id:"a-kind"}); KINDS.forEach(k => { const o = el("option", {text:k}); if (k === lastKind) o.selected = true; kind.append(o); });
+    const date = el("input", {type:"date", id:"a-date"}); date.value = today();
+    const tags = el("input", {type:"text", id:"a-tags", placeholder:"スペース区切り"});
+    const group = el("input", {type:"text", id:"a-group", placeholder:"例：MSP day1"});
+    const memo = el("textarea", {id:"a-memo"});
+    const saved = el("div", {class:"saved-note"}); saved.hidden = true;
+    const note = el("div", {class:"note"});
+    const saveBtn = el("button", {class:"btn primary", type:"submit", text:"保存"});
+    const cancel = el("button", {class:"btn", type:"button", text:"閉じる"});
+    let force = false, lookedUp = "", images = [], peopleTouched = false;
+    const peopleNote = el("div", {class:"note"}); peopleNote.hidden = true;
+    people.addEventListener("input", () => { peopleTouched = true; peopleNote.hidden = true; });
+    const thumbsBox = el("div", {class:"add-thumbs"});
+
+    cancel.onclick = () => { area.hidden = true; area.replaceChildren(); };
+
+    function checkDup(){
+      const hit = ROWS.find(r => normalize(r.url) === normalize(url.value));
+      force = !!hit;
+      saved.hidden = !hit;
+      if (hit) saved.textContent = "✓ 登録済みです（" + (hit.person || "出演者なし") + " / " + (hit.date || "日付なし") + "）";
+      saveBtn.textContent = hit ? "重複して保存" : "保存";
+    }
+    function lookup(){
+      const u = url.value.trim();
+      checkDup();
+      if (!/^https?:\/\//.test(u) || u === lookedUp) return;
+      lookedUp = u;
+      images = []; thumbsBox.replaceChildren();
+      note.className = "note"; note.textContent = "タイトルと日付を取得しています…";
+      google.script.run.withSuccessHandler(info => {
+        if (url.value.trim() !== u) return;
+        note.textContent = "";
+        if (info && info.ok) {
+          if (info.title && !title.value.trim()) title.value = info.title;
+          if (info.date) date.value = info.date;
+          images = Array.isArray(info.images) ? info.images : [];
+          if (!peopleTouched) {
+            const known = [...new Set([].concat(...ROWS.map(r => r.people)))];
+            const found = findPeople([info.title, info.author, info.text].join("\n"), known);
+            if (found.length) { people.value = found.join("、"); peopleNote.textContent = "ページから自動入力しました。違っていたら直してください"; peopleNote.hidden = false; }
+          }
+          thumbsBox.replaceChildren(...images.map(u => el("img", {src:u, alt:"", referrerpolicy:"no-referrer"})));
+        }
+      }).withFailureHandler(() => { note.textContent = ""; }).apiInfo(KEY, u);
+    }
+    url.addEventListener("change", lookup);
+    url.addEventListener("paste", () => setTimeout(lookup, 0));
+    url.addEventListener("input", checkDup);
+
+    const form = el("form", {class:"edit"},
+      el("label", {text:"URL"}, url),
+      saved,
+      el("label", {text:"タイトル（空欄なら自動取得）"}, title),
+      thumbsBox,
+      el("label", {text:"出演者（「、」区切り）"}, people, plist, peopleNote),
+      el("div", {class:"two"}, el("label", {text:"種類"}, kind), el("label", {text:"日付"}, date)),
+      el("label", {text:"タグ（下の候補をタップで追加）"}, tags, tagPicker(tags)),
+      el("label", {text:"まとめ（空欄でも可）"}, group, groupPicker(group)),
+      el("label", {text:"メモ"}, memo),
+      el("div", {class:"acts"}, cancel, saveBtn),
+      note
+    );
+    form.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const u = url.value.trim();
+      if (!/^https?:\/\//.test(u)) { note.className = "note err"; note.textContent = "http:// か https:// で始まるURLを入れてください"; return; }
+      saveBtn.disabled = true; cancel.disabled = true; note.className = "note"; note.textContent = "保存しています…";
+      const data = { url: u, title: title.value.trim(), person: split(people.value).join("、"), kind: kind.value, date: date.value,
+                     tags: tags.value.trim().split(/[\s　]+/).filter(Boolean), memo: memo.value.trim(), force: force, images: images, group: group.value.trim() };
+      google.script.run.withSuccessHandler(res => {
+        saveBtn.disabled = false; cancel.disabled = false;
+        if (res && res.ok) {
+          try { localStorage.setItem("seiyu-last-people", data.person); localStorage.setItem("seiyu-last-kind", data.kind); } catch(e) {}
+          ROWS = res.rows; prep(); area.hidden = true; area.replaceChildren(); render(); toast("追加しました");
+        } else if (res && res.error === "duplicate") {
+          force = true; saveBtn.textContent = "重複して保存"; note.className = "note err"; note.textContent = "すでに登録されています。もう一度押すと重複して保存します";
+        } else {
+          note.className = "note err"; note.textContent = res && res.error === "bad_key" ? "合言葉が違うため保存できません" : "保存できませんでした";
+        }
+      }).withFailureHandler(() => { saveBtn.disabled = false; cancel.disabled = false; note.className = "note err"; note.textContent = "通信に失敗しました。もう一度お試しください"; })
+        .apiAdd(KEY, data);
+    });
+
+    area.replaceChildren(el("h2", {text:"リンクを追加"}), form);
+    area.hidden = false;
+    if (prefillUrl) { url.value = prefillUrl; lookup(); people.focus(); }
+    else url.focus();
+    area.scrollIntoView({block:"start"});
+  }
+  $("addBtn").addEventListener("click", () => openAdd(""));
+  // 外から最新データを差し込むための入口（GitHub Pages 版で使用）
+  window.__linkbook = {
+    setData(rows, readings){ ROWS = rows; if (readings) READINGS = readings; prep(); render(); },
+    render
+  };
+  if (ADD_URL) openAdd(ADD_URL);
+
+  $("groupToggle").addEventListener("click", () => { state.grouped = !state.grouped; save(); render(); });
+  $("q").addEventListener("input", () => { state.q = $("q").value; save(); render(); });
+  $("sort").addEventListener("change", () => { state.sort = $("sort").value; save(); render(); });
+  render();
+})();
+</script>
+<script>
+(function(){
+  const form = document.getElementById("keyForm");
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const v = document.getElementById("keyInput").value.trim();
+    if (!v) return;
+    try { localStorage.setItem("linkbook-key", v); } catch (err) {}
+    location.reload();
+  });
+  if (window.LINKBOOK_NEED_KEY) { window.LINKBOOK_SHOW_KEY(); return; }
+  window.LINKBOOK_REFRESH();
+  // 別のアプリから戻ってきたときも最新にする
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) window.LINKBOOK_REFRESH(); });
+})();
+</script>
+
+</body>
+</html>
