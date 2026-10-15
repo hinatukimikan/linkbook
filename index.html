@@ -70,6 +70,8 @@ html,body{max-width:100%;overflow-x:hidden}
 .search select{flex:0 0 auto;width:auto}
 /* 編集・削除 */
 .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.meta .card-acts{margin-left:auto}
+.meta .card-acts .btn{padding:1px 10px;font-size:11px}
 .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 13px;font:inherit;font-size:12px;cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:700}
 .btn.danger{border-color:var(--accent);color:var(--accent);font-weight:700}
@@ -470,7 +472,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       clearTimeout(armed); del.disabled = true; edit.disabled = true; del.textContent = "削除しています…";
       call("apiDelete", [r.row, r.url], () => toast("削除しました"), msg => { toast(msg); del.disabled = false; edit.disabled = false; del.textContent = "削除"; del.classList.remove("danger"); armed = null; });
     };
-    body.append(el("div", {class:"acts"}, edit, del));
+    meta.append(el("div", {class:"acts card-acts"}, edit, del));   // 編集・削除は1行目の右端に（写真の下に余白を作らない）
     return el("article", {class:"stub"}, dateCol(r), body);
   }
 
