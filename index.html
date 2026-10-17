@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-17 22:30 JST -->
+<!-- build 2026-10-17 22:34 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -595,6 +595,18 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     return hits.sort((a, b) => a[0] - b[0]).map(h => h[1]);
   }
 
+  // URLから種類を決める（決まらないときは null）
+  function kindForUrl(u){
+    let x;
+    try { x = new URL(String(u)); } catch (e) { return null; }
+    const h = x.hostname.replace(/^(www|m|mobile)\./, ""), p = x.pathname;
+    if (/^(x|twitter)\.com$|instagram\.com$|tiktok\.com$|bsky\.app$|threads\.(net|com)$/.test(h)) return "SNS自撮り";
+    if (/youtube\.com$|youtu\.be$/.test(h)) return /^\/live\//.test(p) ? "配信・生放送" : "出演動画";
+    if (/^live\.nicovideo\.jp$|^live\.bilibili\.com$|twitch\.tv$|showroom-live\.com$|openrec\.tv$|twitcasting\.tv$/.test(h)) return "配信・生放送";
+    if (/nicovideo\.jp$|nico\.ms$|bilibili\.com$|^b23\.tv$/.test(h)) return "出演動画";
+    return null;
+  }
+
   // シャニのキャスト（ユニット別）。タップで出演者欄に出し入れ
   const CAST = [
     ["イルミネーションスターズ", [["関根瞳","真乃"],["近藤玲奈","灯織"],["峯田茉優","めぐる"]]],
@@ -697,6 +709,10 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     [...new Set([].concat(...ROWS.map(r => r.people)))].forEach(p => plist.append(el("option", {value:p})));
     people.value = lastPeople;
     const kind = el("select", {id:"a-kind"}); KINDS.forEach(k => { const o = el("option", {text:k}); if (k === lastKind) o.selected = true; kind.append(o); });
+    let kindTouched = false;
+    kind.addEventListener("change", () => { kindTouched = true; });
+    // URLを入れたら種類を自動で選ぶ（自分で選び直したらそちらを優先）
+    const autoKind = () => { if (kindTouched) return; const k = kindForUrl(url.value.trim()); if (k) kind.value = k; };
     const date = el("input", {type:"date", id:"a-date"}); date.value = today();
     const tags = el("input", {type:"text", id:"a-tags", placeholder:"スペース区切り"});
     const group = el("input", {type:"text", id:"a-group", placeholder:"例：MSP day1"});
@@ -722,6 +738,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     function lookup(){
       const u = url.value.trim();
       checkDup();
+      autoKind();
       if (!/^https?:\/\//.test(u) || u === lookedUp) return;
       lookedUp = u;
       images = []; thumbsBox.replaceChildren();
@@ -744,7 +761,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     }
     url.addEventListener("change", lookup);
     url.addEventListener("paste", () => setTimeout(lookup, 0));
-    url.addEventListener("input", checkDup);
+    url.addEventListener("input", () => { checkDup(); autoKind(); });
 
     const form = el("form", {class:"edit"},
       el("label", {text:"URL"}, url),
