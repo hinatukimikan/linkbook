@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-16 01:50 JST -->
+<!-- build 2026-10-17 22:30 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -90,6 +90,19 @@ html,body{max-width:100%;overflow-x:hidden}
 #addArea{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px}
 #addArea h2{margin:0 0 8px;font-size:15px}
 .saved-note{border:1px solid var(--k-live);color:var(--k-live);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700}
+.castpick{margin-top:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.castpick summary{cursor:pointer;padding:7px 10px;font-size:12px;color:var(--accent);font-weight:700;list-style:none}
+.castpick summary::-webkit-details-marker{display:none}
+.castpick summary::before{content:"▸ "}
+.castpick[open] summary::before{content:"▾ "}
+.castpick .units{display:grid;gap:8px;padding:0 10px 10px}
+.castpick .unit{display:grid;gap:4px}
+.castpick .uname{font-size:11px;color:var(--muted);letter-spacing:.04em}
+.castpick .uchips{display:flex;flex-wrap:wrap;gap:5px}
+.castpick button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:4px 11px;font:inherit;font-size:13px;cursor:pointer}
+.castpick button small{color:var(--muted);font-size:10px;margin-left:3px}
+.castpick button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.castpick button[aria-pressed="true"] small{color:var(--bg);opacity:.75}
 .tagpick{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .tagpick button{border:1px dashed var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}
 .tagpick button[aria-pressed="true"]{border-style:solid;border-color:var(--ink);background:var(--ink);color:var(--bg)}
@@ -495,6 +508,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       el("label", {text:"タイトル"}, title),
       el("div", {class:"url", text:r.url}),
       el("label", {text:"出演者（「、」区切り）"}, people),
+      castPicker(people),
       el("div", {class:"two"}, el("label", {text:"種類"}, kind), el("label", {text:"日付"}, date)),
       el("label", {text:"タグ（下の候補をタップで追加）"}, tags, tagPicker(tags)),
       el("label", {text:"まとめ（同じイベントなどを1つにまとめる名前。空欄でも可）"}, group, groupPicker(group)),
@@ -579,6 +593,46 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       }
     });
     return hits.sort((a, b) => a[0] - b[0]).map(h => h[1]);
+  }
+
+  // シャニのキャスト（ユニット別）。タップで出演者欄に出し入れ
+  const CAST = [
+    ["イルミネーションスターズ", [["関根瞳","真乃"],["近藤玲奈","灯織"],["峯田茉優","めぐる"]]],
+    ["アンティーカ", [["礒部花凜","恋鐘"],["菅沼千紗","摩美々"],["八巻アンナ","咲耶"],["希水しお","結華"],["結名美月","霧子"]]],
+    ["放課後クライマックスガールズ", [["河野ひより","果穂"],["白石晴香","智代子"],["永井真里子","樹里"],["丸岡和佳奈","凛世"],["涼本あきほ","夏葉"]]],
+    ["アルストロメリア", [["黒木ほの香","甘奈"],["前川涼子","甜花"],["芝崎典子","千雪"]]],
+    ["ストレイライト", [["田中有紀","あさひ"],["幸村恵理","冬優子"],["北原沙弥香","愛依"]]],
+    ["ノクチル", [["和久井優","透"],["土屋李央","円香"],["田嶌紗蘭","小糸"],["岡咲美保","雛菜"]]],
+    ["シーズ", [["紫月杏朱彩","にちか"],["山根綺","美琴"]]],
+    ["コメティック", [["川口莉奈","ルカ"],["三川華月","羽那"],["小澤麗那","はるき"]]]
+  ];
+  function castPicker(input){
+    const box = el("details", {class:"castpick"});
+    box.append(el("summary", {text:"シャニのキャストから選ぶ"}));
+    const units = el("div", {class:"units"});
+    box.append(units);
+    const current = () => split(input.value);
+    const btns = [];
+    CAST.forEach(([unit, members]) => {
+      const row = el("div", {class:"uchips"});
+      members.forEach(([name, chara]) => {
+        const b = el("button", {type:"button", "aria-pressed":"false"}, document.createTextNode(name), el("small", {text:chara}));
+        b.onclick = () => {
+          const now = current();
+          input.value = (now.includes(name) ? now.filter(x => x !== name) : now.concat(name)).join("、");
+          input.dispatchEvent(new Event("input", {bubbles:true}));
+          draw();
+        };
+        btns.push([name, b]);
+        row.append(b);
+      });
+      units.append(el("div", {class:"unit"}, el("div", {class:"uname", text:unit}), row));
+    });
+    const draw = () => { const cur = current(); btns.forEach(([n, b]) => b.setAttribute("aria-pressed", String(cur.includes(n)))); };
+    input.addEventListener("input", draw);
+    input.addEventListener("castsync", draw);   // 自動入力などで値が変わったとき
+    draw();
+    return box;
   }
 
   function groupPicker(input){
@@ -682,7 +736,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
           if (!peopleTouched) {
             const known = [...new Set([].concat(...ROWS.map(r => r.people)))];
             const found = findPeople([info.title, info.author, info.text].join("\n"), known);
-            if (found.length) { people.value = found.join("、"); peopleNote.textContent = "ページから自動入力しました。違っていたら直してください"; peopleNote.hidden = false; }
+            if (found.length) { people.value = found.join("、"); people.dispatchEvent(new Event("castsync")); peopleNote.textContent = "ページから自動入力しました。違っていたら直してください"; peopleNote.hidden = false; }
           }
           thumbsBox.replaceChildren(...images.map(u => el("img", {src:u, alt:"", referrerpolicy:"no-referrer"})));
         }
@@ -698,6 +752,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       el("label", {text:"タイトル（空欄なら自動取得）"}, title),
       thumbsBox,
       el("label", {text:"出演者（「、」区切り）"}, people, plist, peopleNote),
+      castPicker(people),
       el("div", {class:"two"}, el("label", {text:"種類"}, kind), el("label", {text:"日付"}, date)),
       el("label", {text:"タグ（下の候補をタップで追加）"}, tags, tagPicker(tags)),
       el("label", {text:"まとめ（空欄でも可）"}, group, groupPicker(group)),
