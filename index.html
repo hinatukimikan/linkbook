@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-17 22:34 JST -->
+<!-- build 2026-10-20 19:42 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -53,6 +53,8 @@ input,select{font:inherit;color:inherit;border:1px solid var(--line);background:
 .body{padding:12px 14px;display:grid;gap:5px;min-width:0}
 .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}
 .kind{border-radius:4px;padding:1px 8px;font-weight:700;color:var(--surface);background:var(--k-other)}
+.kind[data-k="シャニ配信"]{background:var(--k-video)}
+.kind[data-k="声優配信"]{background:var(--k-live)}
 .kind[data-k="出演動画"]{background:var(--k-video)}
 .kind[data-k="SNS自撮り"]{background:var(--k-selfie)}
 .kind[data-k="配信・生放送"]{background:var(--k-live)}
@@ -277,7 +279,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     if (!!ya !== !!yb) return ya ? -1 : 1;
     return (ya || a).localeCompare(yb || b, "ja");
   });
-  const KINDS = ["出演動画","SNS自撮り","配信・生放送","その他"];
+  const KINDS = ["SNS自撮り","シャニ配信","声優配信","その他"];
   const split = v => String(v || "").split(/[、,，]/).map(x => x.trim()).filter(Boolean);
   const ytId = u => (String(u).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|live\/))([\w-]{11})/) || [])[1];
   // X の画像は大きさを指定できる（small / large）
@@ -336,7 +338,8 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
 
   function render(){
     const kc = $("kindChips"); kc.replaceChildren();
-    ["すべて", ...KINDS].forEach(k => kc.append(chip(k, state.kind === k, () => { state.kind = k; save(); render(); })));
+    const kindsInUse = KINDS.concat([...new Set(ROWS.map(r => r.kind).filter(k => k && !KINDS.includes(k)))]);
+    ["すべて", ...kindsInUse].forEach(k => kc.append(chip(k, state.kind === k, () => { state.kind = k; save(); render(); })));
     const people = sortPeople([...new Set([].concat(...ROWS.map(r => r.people)))]);
     if (state.person !== "すべて" && !people.includes(state.person)) state.person = "すべて";
     const pc = $("personChips"); pc.replaceChildren();
@@ -494,7 +497,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const id = s => "e-" + s;
     const title = el("input", {type:"text", id:id("title")}); title.value = r.title;
     const people = el("input", {type:"text", id:id("people"), placeholder:"名前A、名前B"}); people.value = r.people.join("、");
-    const kind = el("select", {id:id("kind")}); KINDS.forEach(k => { const o = el("option", {text:k}); if (k === r.kind) o.selected = true; kind.append(o); });
+    const kind = el("select", {id:id("kind")}); (KINDS.includes(r.kind) || !r.kind ? KINDS : KINDS.concat(r.kind)).forEach(k => { const o = el("option", {text:k}); if (k === r.kind) o.selected = true; kind.append(o); });
     const date = el("input", {type:"date", id:id("date")}); date.value = /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
     const tags = el("input", {type:"text", id:id("tags"), placeholder:"スペース区切り"}); tags.value = r.tags;
     const memo = el("textarea", {id:id("memo")}); memo.value = r.memo;
@@ -595,16 +598,22 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     return hits.sort((a, b) => a[0] - b[0]).map(h => h[1]);
   }
 
-  // URLから種類を決める（決まらないときは null）
+  // 種類の自動判定。SNS は URL だけで決まる。動画・配信サイトはチャンネル名やタイトルで
+  // シャニ公式っぽければ「シャニ配信」、それ以外は「声優配信」。
+  const SNS_HOST = /^(x|twitter)\.com$|instagram\.com$|tiktok\.com$|bsky\.app$|threads\.(net|com)$/;
+  const VIDEO_HOST = /youtube\.com$|youtu\.be$|nicovideo\.jp$|nico\.ms$|bilibili\.com$|^b23\.tv$|twitch\.tv$|showroom-live\.com$|openrec\.tv$|twitcasting\.tv$/;
+  const SHANI_WORDS = /シャニ|シャイニーカラーズ|アイドルマスター|アイマス|IDOLM@STER|idolmaster|偶像大师|283プロ|283PRO/i;
+  function hostOf(u){ try { return new URL(String(u)).hostname.replace(/^(www|m|mobile|live)\./, ""); } catch (e) { return ""; } }
   function kindForUrl(u){
-    let x;
-    try { x = new URL(String(u)); } catch (e) { return null; }
-    const h = x.hostname.replace(/^(www|m|mobile)\./, ""), p = x.pathname;
-    if (/^(x|twitter)\.com$|instagram\.com$|tiktok\.com$|bsky\.app$|threads\.(net|com)$/.test(h)) return "SNS自撮り";
-    if (/youtube\.com$|youtu\.be$/.test(h)) return /^\/live\//.test(p) ? "配信・生放送" : "出演動画";
-    if (/^live\.nicovideo\.jp$|^live\.bilibili\.com$|twitch\.tv$|showroom-live\.com$|openrec\.tv$|twitcasting\.tv$/.test(h)) return "配信・生放送";
-    if (/nicovideo\.jp$|nico\.ms$|bilibili\.com$|^b23\.tv$/.test(h)) return "出演動画";
+    const h = hostOf(u);
+    if (SNS_HOST.test(h)) return "SNS自撮り";
     return null;
+  }
+  function kindFromInfo(u, title, author){
+    const h = hostOf(u);
+    if (SNS_HOST.test(h)) return "SNS自撮り";
+    if (!VIDEO_HOST.test(h)) return null;
+    return SHANI_WORDS.test(String(author || "") + " " + String(title || "")) ? "シャニ配信" : "声優配信";
   }
 
   // シャニのキャスト（ユニット別）。タップで出演者欄に出し入れ
@@ -708,7 +717,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const plist = el("datalist", {id:"a-people-list"});
     [...new Set([].concat(...ROWS.map(r => r.people)))].forEach(p => plist.append(el("option", {value:p})));
     people.value = lastPeople;
-    const kind = el("select", {id:"a-kind"}); KINDS.forEach(k => { const o = el("option", {text:k}); if (k === lastKind) o.selected = true; kind.append(o); });
+    const kind = el("select", {id:"a-kind"}); KINDS.forEach(k => { const o = el("option", {text:k}); if (k === (KINDS.includes(lastKind) ? lastKind : "SNS自撮り")) o.selected = true; kind.append(o); });
     let kindTouched = false;
     kind.addEventListener("change", () => { kindTouched = true; });
     // URLを入れたら種類を自動で選ぶ（自分で選び直したらそちらを優先）
@@ -750,6 +759,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
           if (info.title && !title.value.trim()) title.value = info.title;
           if (info.date) date.value = info.date;
           images = Array.isArray(info.images) ? info.images : [];
+          if (!kindTouched) { const k = kindFromInfo(u, info.title, info.author); if (k) kind.value = k; }
           if (!peopleTouched) {
             const known = [...new Set([].concat(...ROWS.map(r => r.people)))];
             const found = findPeople([info.title, info.author, info.text].join("\n"), known);
