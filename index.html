@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-20 19:42 JST -->
+<!-- build 2026-10-22 08:56 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -139,6 +139,37 @@ html,body{max-width:100%;overflow-x:hidden}
 .entry .emeta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--muted)}
 .entry .btn{padding:2px 10px;font-size:11px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:13px;z-index:5;max-width:calc(100% - 32px)}
+/* スマホ：左右の枠はないものとして、今までどおり縦1列（題名 → 追加 → 絞り込み → 一覧） */
+.side,.main{display:contents}
+.wrap>.side>header{order:0}
+#addArea{order:1}
+.filters{order:2}
+.list{order:3}
+.side-label,.topbar,.chip .n{display:none}
+/* PC：左に絞り込み、右に一覧 */
+@media (min-width:900px){
+  .wrap{max-width:none;padding:0;gap:0;grid-template-columns:260px minmax(0,1fr);align-items:start}
+  .side{display:grid;align-content:start;gap:14px;position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:18px 12px 32px}
+  .side header{display:grid;gap:8px;padding:0 6px}
+  .side h1{font-size:22px}
+  .side .head-right{display:grid;gap:8px}
+  .side .add-btn{width:100%;white-space:nowrap}
+  .filters{position:static;background:transparent;border:0;padding:0;gap:2px}
+  .side-label{display:block;margin:12px 6px 4px;font-size:11px;color:var(--muted);letter-spacing:.08em}
+  .side-label:first-child{margin-top:0}
+  .filters .chips{flex-direction:column;flex-wrap:nowrap;gap:1px}
+  .filters .chips.clamp{max-height:none;overflow:visible}
+  .filters .more{display:none}
+  .filters .chip{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:6px 10px;font-size:14px}
+  .filters .chip:hover{background:var(--bg)}
+  .filters .chip[aria-pressed="true"]{background:var(--bg);color:var(--accent);font-weight:700}
+  .chip .pre{display:none}
+  .chip .n{display:inline;margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--muted);font-weight:400}
+  .main{display:grid;gap:16px;align-content:start;padding:0 28px 64px;min-width:0}
+  .main>*{min-width:0;width:100%;max-width:960px}
+  .topbar{display:block;position:sticky;top:0;z-index:2;background:var(--bg);padding:14px 0 12px;border-bottom:1px solid var(--line)}
+  .topbar .search{flex-wrap:nowrap}
+}
 
 /* GitHub Pages 版のみ */
 html.needkey .wrap{display:none}
@@ -158,6 +189,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   <button class="btn primary" type="submit">はじめる</button>
 </form>
 <div class="wrap">
+  <aside class="side">
   <header>
     <h1>声優出演リンク帳</h1>
     <div class="head-right">
@@ -165,20 +197,27 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       <button class="btn primary add-btn" type="button" id="addBtn">＋ 追加</button>
     </div>
   </header>
-  <section id="addArea" hidden></section>
-  <section class="filters">
+  <section class="filters" id="filters">
+    <div class="side-label">種類</div>
     <div class="chips" id="kindChips"></div>
+    <div class="side-label">出演者</div>
     <div class="chips" id="personChips"></div>
     <button class="more" type="button" id="personMore" hidden></button>
+    <div class="side-label" id="groupLabel">まとめ</div>
     <div class="chips" id="groupChips"></div>
     <button class="more" type="button" id="groupMore" hidden></button>
-    <div class="search">
+    <div class="search" id="searchRow">
       <button class="chip toggle" type="button" id="groupToggle" aria-pressed="false">まとめて表示</button>
       <input id="q" type="search" placeholder="タイトル・メモ・タグで検索">
       <select id="sort" aria-label="並び順"><option value="desc">新しい順</option><option value="asc">古い順</option></select>
     </div>
   </section>
+  </aside>
+  <main class="main">
+  <div class="topbar" id="searchSlot"></div>
+  <section id="addArea" hidden></section>
   <section class="list" id="list"></section>
+  </main>
 </div>
 <div class="toast" id="toast" hidden></div>
 <div class="lightbox" id="lightbox" hidden></div>
@@ -316,7 +355,20 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     return n;
   }
   function safeUrl(u){ try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : "#"; } catch(e) { return "#"; } }
-  function chip(label, active, fn){ const b = el("button", {class:"chip", type:"button", "aria-pressed":String(active), text:label}); b.onclick = fn; return b; }
+  // pre：ラベルの前置き（PC では小見出しがあるので隠す）、n：件数（PC だけ表示）
+  function chip(label, active, fn, pre, n){
+    const b = el("button", {class:"chip", type:"button", "aria-pressed":String(active)});
+    if (pre) b.append(el("span", {class:"pre", text:pre}));
+    b.append(label);
+    if (n != null) b.append(el("small", {class:"n", text:String(n)}));
+    b.onclick = fn; return b;
+  }
+  // PC（横幅900px以上）では検索欄を右側の上へ、スマホでは絞り込みの最後へ
+  const wide = matchMedia("(min-width:900px)");
+  let wasWide = wide.matches;
+  const placeSearch = () => (wide.matches ? $("searchSlot") : $("filters")).append($("searchRow"));
+  placeSearch();
+  addEventListener("resize", () => { if (wide.matches === wasWide) return; wasWide = wide.matches; placeSearch(); render(); });
   let toastTimer;
   function toast(t){ const n = $("toast"); n.textContent = t; n.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => n.hidden = true, 2500); }
 
@@ -339,16 +391,23 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   function render(){
     const kc = $("kindChips"); kc.replaceChildren();
     const kindsInUse = KINDS.concat([...new Set(ROWS.map(r => r.kind).filter(k => k && !KINDS.includes(k)))]);
-    ["すべて", ...kindsInUse].forEach(k => kc.append(chip(k, state.kind === k, () => { state.kind = k; save(); render(); })));
+    const cnt = {kind:{}, person:{}, group:{}};
+    ROWS.forEach(r => {
+      cnt.kind[r.kind] = (cnt.kind[r.kind] || 0) + 1;
+      r.people.forEach(p => cnt.person[p] = (cnt.person[p] || 0) + 1);
+      if (r.group) cnt.group[r.group] = (cnt.group[r.group] || 0) + 1;
+    });
+    ["すべて", ...kindsInUse].forEach(k => kc.append(chip(k, state.kind === k, () => { state.kind = k; save(); render(); }, "", k === "すべて" ? ROWS.length : cnt.kind[k] || 0)));
     const people = sortPeople([...new Set([].concat(...ROWS.map(r => r.people)))]);
     if (state.person !== "すべて" && !people.includes(state.person)) state.person = "すべて";
     const pc = $("personChips"); pc.replaceChildren();
-    if (people.length) ["すべて", ...people].forEach(p => pc.append(chip(p === "すべて" ? "出演者：すべて" : p, state.person === p, () => { state.person = p; save(); render(); })));
+    if (people.length) ["すべて", ...people].forEach(p => pc.append(chip(p, state.person === p, () => { state.person = p; save(); render(); }, p === "すべて" ? "出演者：" : "", p === "すべて" ? ROWS.length : cnt.person[p])));
     const groups = allGroups();
     if (state.group !== "すべて" && !groups.includes(state.group)) state.group = "すべて";
     const gc = $("groupChips"); gc.replaceChildren();
-    if (groups.length) ["すべて", ...groups].forEach(g => gc.append(chip(g === "すべて" ? "まとめ：すべて" : g, state.group === g, () => { state.group = g; save(); render(); })));
+    if (groups.length) ["すべて", ...groups].forEach(g => gc.append(chip(g, state.group === g, () => { state.group = g; save(); render(); }, g === "すべて" ? "まとめ：" : "", g === "すべて" ? ROWS.length : cnt.group[g])));
     gc.hidden = !groups.length;
+    $("groupLabel").hidden = !groups.length;
     $("groupToggle").setAttribute("aria-pressed", String(state.grouped));
     clampRow("personChips", "personMore", "people");
     clampRow("groupChips", "groupMore", "groups");
@@ -393,7 +452,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const row = $(rowId), btn = $(btnId);
     row.classList.remove("clamp");
     btn.hidden = true;
-    if (row.hidden || !row.children.length) return;
+    if (wide.matches || row.hidden || !row.children.length) return;
     row.classList.add("clamp");
     const overflow = row.scrollHeight > row.clientHeight + 2;
     if (!overflow) { row.classList.remove("clamp"); return; }
