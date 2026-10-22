@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 08:59 JST -->
+<!-- build 2026-10-22 09:01 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -148,6 +148,8 @@ html,body{max-width:100%;overflow-x:hidden}
 .side-label,.topbar,.chip .n{display:none}
 /* PC：左に絞り込み、右に一覧 */
 @media (min-width:900px){
+  /* スクロールバーが出たり消えたりしても幅が変わらないよう、いつも場所を空けておく */
+  html,.side{scrollbar-gutter:stable}
   .wrap{max-width:none;padding:0;gap:0;grid-template-columns:260px minmax(0,1fr);align-items:start}
   .side{display:grid;align-content:start;gap:14px;position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:18px 12px 32px}
   .side header{display:grid;gap:8px;padding:0 6px}
