@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:49 JST -->
+<!-- build 2026-10-22 09:55 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -215,6 +215,9 @@ html,body{max-width:100%;overflow-x:hidden}
   .chip .n{display:inline;margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--muted);font-weight:400}
   .main{display:grid;gap:16px;align-content:start;padding:0 28px 64px;min-width:0}
   .main>*{min-width:0;width:100%;max-width:960px}
+  /* カード表示のときは横幅いっぱいに使い、画面の広さに合わせて列の数が増える */
+  .main:has(#list.cards)>.topbar,.main>#list.cards{max-width:none}
+  #list.cards>.stub{max-width:960px}
   .topbar{display:block;position:sticky;top:0;z-index:2;background:var(--bg);padding:14px 0 12px;border-bottom:1px solid var(--line)}
   .topbar .search{flex-wrap:nowrap}
 }
