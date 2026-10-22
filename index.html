@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 08:56 JST -->
+<!-- build 2026-10-22 08:59 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -155,8 +155,13 @@ html,body{max-width:100%;overflow-x:hidden}
   .side .head-right{display:grid;gap:8px}
   .side .add-btn{width:100%;white-space:nowrap}
   .filters{position:static;background:transparent;border:0;padding:0;gap:2px}
-  .side-label{display:block;margin:12px 6px 4px;font-size:11px;color:var(--muted);letter-spacing:.08em}
+  .side-label{display:flex;align-items:baseline;gap:6px;width:calc(100% - 12px);margin:10px 6px 2px;padding:4px 0;border:0;background:transparent;font:inherit;font-size:12px;color:var(--muted);letter-spacing:.08em;text-align:left;cursor:pointer}
+  .side-label::before{content:"▾";display:inline-block;width:10px}
+  .side-label.folded::before{content:"▸"}
+  .side-label:hover{color:var(--ink)}
+  .side-label .sel{margin-left:auto;color:var(--accent);font-weight:700;letter-spacing:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
   .side-label:first-child{margin-top:0}
+  .filters.fold-kind #kindChips,.filters.fold-person #personChips,.filters.fold-group #groupChips{display:none}
   .filters .chips{flex-direction:column;flex-wrap:nowrap;gap:1px}
   .filters .chips.clamp{max-height:none;overflow:visible}
   .filters .more{display:none}
@@ -198,12 +203,12 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     </div>
   </header>
   <section class="filters" id="filters">
-    <div class="side-label">種類</div>
+    <button class="side-label" type="button" data-sec="kind">種類</button>
     <div class="chips" id="kindChips"></div>
-    <div class="side-label">出演者</div>
+    <button class="side-label" type="button" data-sec="person">出演者</button>
     <div class="chips" id="personChips"></div>
     <button class="more" type="button" id="personMore" hidden></button>
-    <div class="side-label" id="groupLabel">まとめ</div>
+    <button class="side-label" type="button" data-sec="group" id="groupLabel">まとめ</button>
     <div class="chips" id="groupChips"></div>
     <button class="more" type="button" id="groupMore" hidden></button>
     <div class="search" id="searchRow">
@@ -369,6 +374,22 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   const placeSearch = () => (wide.matches ? $("searchSlot") : $("filters")).append($("searchRow"));
   placeSearch();
   addEventListener("resize", () => { if (wide.matches === wasWide) return; wasWide = wide.matches; placeSearch(); render(); });
+  // PC の左の欄：見出しを押すと折りたたむ（端末に覚えておく）
+  const folded = {};
+  try { Object.assign(folded, JSON.parse(localStorage.getItem("seiyu-fold") || "{}")); } catch(e) {}
+  const SEC_NAMES = {kind:"種類", person:"出演者", group:"まとめ"};
+  function sideLabels(){
+    document.querySelectorAll(".side-label").forEach(b => {
+      const sec = b.dataset.sec;
+      $("filters").classList.toggle("fold-" + sec, !!folded[sec]);
+      b.classList.toggle("folded", !!folded[sec]);
+      b.setAttribute("aria-expanded", String(!folded[sec]));
+      // たたんでいても、選んでいるものが分かるように見出しの右に出す
+      b.replaceChildren(SEC_NAMES[sec]);
+      if (state[sec] !== "すべて") b.append(el("span", {class:"sel", text:state[sec]}));
+      b.onclick = () => { folded[sec] = !folded[sec]; try { localStorage.setItem("seiyu-fold", JSON.stringify(folded)); } catch(e) {} sideLabels(); };
+    });
+  }
   let toastTimer;
   function toast(t){ const n = $("toast"); n.textContent = t; n.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => n.hidden = true, 2500); }
 
@@ -408,6 +429,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     if (groups.length) ["すべて", ...groups].forEach(g => gc.append(chip(g, state.group === g, () => { state.group = g; save(); render(); }, g === "すべて" ? "まとめ：" : "", g === "すべて" ? ROWS.length : cnt.group[g])));
     gc.hidden = !groups.length;
     $("groupLabel").hidden = !groups.length;
+    sideLabels();
     $("groupToggle").setAttribute("aria-pressed", String(state.grouped));
     clampRow("personChips", "personMore", "people");
     clampRow("groupChips", "groupMore", "groups");
