@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 12:59 JST -->
+<!-- build 2026-10-22 14:26 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -191,7 +191,12 @@ html,body{max-width:100%;overflow-x:hidden}
 .list{order:3}
 .side-label,.topbar,.chip .n{display:none}
 /* まとめの中の「シャニ」「それ以外」。スマホでは区切りの小さな文字だけ（押せない） */
-.gcat{flex:0 0 100%;border:0;background:transparent;padding:4px 2px 0;font:inherit;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-align:left;pointer-events:none}
+/* スマホ：見出しは区切りの小さなボタン（押すと中のまとめを全部選ぶ）。▾ は出さない */
+.gcat{flex:0 0 100%;display:flex;align-items:center;padding:4px 0 0}
+.gcat-fold{display:none}
+.gcat-pick{border:1px dashed var(--line);background:transparent;border-radius:999px;padding:2px 10px;font:inherit;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;cursor:pointer}
+.gcat-pick[aria-pressed="true"]{border-style:solid;border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.gcat-pick .n{display:none}
 .gcat-items{display:contents}
 .gline{display:flex;gap:8px}
 .gline input{flex:1 1 auto;min-width:0}
@@ -217,10 +222,13 @@ html,body{max-width:100%;overflow-x:hidden}
   .side-label:hover{background:color-mix(in srgb,var(--accent) 20%,var(--surface))}
   .filters .chips{padding-left:14px}
   /* PC：まとめの中の「シャニ」「それ以外」は押すと開く・たたむ見出し。その中のまとめはさらに右へ */
-  .filters .gcat{flex:0 0 auto;display:flex;gap:6px;align-items:baseline;width:100%;margin-top:6px;padding:5px 10px;border-radius:8px;font-size:12px;color:var(--ink);cursor:pointer;pointer-events:auto}
-  .filters .gcat::before{content:"▾";display:inline-block;width:10px;color:var(--muted)}
-  .filters .gcat.folded::before{content:"▸"}
-  .filters .gcat:hover{background:var(--bg)}
+  .filters .gcat{flex:0 0 auto;display:flex;gap:2px;align-items:center;width:100%;margin-top:6px;padding:0}
+  .filters .gcat-fold{display:block;flex:0 0 auto;width:24px;border:0;background:transparent;border-radius:6px;padding:5px 0;font:inherit;font-size:11px;color:var(--muted);cursor:pointer}
+  .filters .gcat-fold:hover{background:var(--bg);color:var(--ink)}
+  .filters .gcat-pick{flex:1 1 auto;display:flex;align-items:baseline;gap:8px;border:0;border-radius:8px;padding:5px 10px 5px 4px;font-size:12px;letter-spacing:.06em;color:var(--ink);text-align:left}
+  .filters .gcat-pick:hover{background:var(--bg)}
+  .filters .gcat-pick[aria-pressed="true"]{background:var(--bg);color:var(--accent)}
+  .filters .gcat-pick .n{display:inline;margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--muted);font-weight:400;letter-spacing:0}
   .filters .gcat-items{display:flex;flex-direction:column;gap:1px;padding-left:14px}
   .filters .gcat-items.folded{display:none}
   .side-label::before{content:"▾";display:inline-block;width:10px}
@@ -517,14 +525,22 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const gc = $("groupChips"); gc.replaceChildren();
     if (groups.length) {
       gc.append(chip("すべて", isOn("group", "すべて"), () => pick("group", "すべて"), "まとめ：", ROWS.length));
-      // シャニ／それ以外 に分けて並べる（見出しは PC では押すと開く・たたむだけ）
+      // シャニ／それ以外 に分けて並べる
+      // 見出しの名前を押すと中のまとめを全部選ぶ（全部選ばれていれば全部外す）。▾ は開く・たたむ（PC だけ）
       const cats = groupCatMap();
       GROUP_CATS.forEach(cat => {
         const list = groups.filter(g => cats[g] === cat);
         if (!list.length) return;
         const key = "gcat-" + cat;
-        const head = el("button", {type:"button", class:"gcat" + (folded[key] ? " folded" : ""), "aria-expanded":String(!folded[key]), text:cat});
-        head.onclick = () => { folded[key] = !folded[key]; try { localStorage.setItem("seiyu-fold", JSON.stringify(folded)); } catch(e) {} render(); };
+        const all = list.every(g => state.group.includes(g));
+        const fold = el("button", {type:"button", class:"gcat-fold", "aria-expanded":String(!folded[key]), "aria-label":cat + "を開く・たたむ", text:folded[key] ? "▸" : "▾"});
+        fold.onclick = () => { folded[key] = !folded[key]; try { localStorage.setItem("seiyu-fold", JSON.stringify(folded)); } catch(e) {} render(); };
+        const name = el("button", {type:"button", class:"gcat-pick", "aria-pressed":String(all), title:all ? cat + "のまとめを全部外す" : cat + "のまとめを全部選ぶ"}, cat, el("small", {class:"n", text:String(list.reduce((s, g) => s + (cnt.group[g] || 0), 0))}));
+        name.onclick = () => {
+          state.group = all ? state.group.filter(g => !list.includes(g)) : state.group.concat(list.filter(g => !state.group.includes(g)));
+          save(); render();
+        };
+        const head = el("div", {class:"gcat" + (folded[key] ? " folded" : "")}, fold, name);
         const box = el("div", {class:"gcat-items" + (folded[key] ? " folded" : "")});
         list.forEach(g => box.append(chip(g, isOn("group", g), () => pick("group", g), "", cnt.group[g])));
         gc.append(head, box);
