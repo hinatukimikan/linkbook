@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 10:07 JST -->
+<!-- build 2026-10-22 10:11 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -400,7 +400,9 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     // X の動画・GIF のサムネイルは、拡大表示で動画を流す
     return list.map(u => ({ thumb: twSize(u, "small"), full: twSize(u, "large"), wide: wide, row: r.row, src: r.url, xvideo: X_VIDEO_THUMB.test(u) }));
   };
-  const prep = () => ROWS.forEach(r => { r.people = split(r.person); r.pics = pics(r); r.group = String(r.group || "").trim(); });
+  // お気に入りの保存待ち（URL → 付けたいかどうか）。裏で最新データに差し替わっても、押した状態を優先する
+  const favPending = new Map();
+  const prep = () => ROWS.forEach(r => { r.people = split(r.person); r.pics = pics(r); r.group = String(r.group || "").trim(); if (favPending.has(r.url)) r.fav = favPending.get(r.url); });
   prep();
   const $ = id => document.getElementById(id);
   const state = {kind:"すべて", person:"すべて", group:"すべて", grouped:false, cards:false, favOnly:false, q:"", sort:"desc"};
@@ -640,11 +642,39 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const b = el("button", {class:"btn fav" + (r.fav ? " on" : ""), type:"button", "aria-pressed":String(!!r.fav), "aria-label":"お気に入り", title:r.fav ? "お気に入りから外す" : "お気に入りにする", text:r.fav ? "♥︎" : "♡︎"});
     b.onclick = e => {
       e.stopPropagation();
-      const on = !r.fav;
-      r.fav = on; render();
-      call("apiFavorite", [r.row, r.url, on], null, msg => { r.fav = !on; render(); toast(msg); });
+      r.fav = !r.fav;
+      favPending.set(r.url, r.fav);
+      render();
+      favSend(r.url);
     };
     return b;
+  }
+  // 保存は1件ずつ順番に。保存中にまた押されたら、終わってから最後の状態を送り直す
+  // （返事で一覧全体を描き直さないので、続けて押しても一瞬戻ることがない）
+  const favBusy = new Set();
+  function favSend(url){
+    if (favBusy.has(url) || !favPending.has(url)) return;
+    const want = favPending.get(url);
+    const r = ROWS.find(x => x.url === url);
+    if (!r) { favPending.delete(url); return; }
+    const fail = msg => {
+      favBusy.delete(url); favPending.delete(url);
+      const cur = ROWS.find(x => x.url === url);
+      if (cur) cur.fav = !want;
+      render(); toast(msg);
+    };
+    favBusy.add(url);
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res || !res.ok) return fail(res && res.error === "moved" ? "スプレッドシート側で行が動いたようです。ページを開き直してください" : res && res.error === "bad_key" ? "合言葉が違うため変更できません" : "お気に入りを保存できませんでした");
+        favBusy.delete(url);
+        if (favPending.get(url) !== want) return favSend(url);
+        favPending.delete(url);
+        // GitHub Pages 版：次に開いたときもすぐ正しく出るよう、端末の控えも更新
+        if (window.LINKBOOK_SAVE_CACHE) window.LINKBOOK_SAVE_CACHE(ROWS.map(({people, pics, ...x}) => x));
+      })
+      .withFailureHandler(() => fail("通信に失敗しました。もう一度お試しください"))
+      .apiFavorite(KEY, r.row, url, want);
   }
 
   // 編集・削除ボタン（削除は2回押しで確定）
