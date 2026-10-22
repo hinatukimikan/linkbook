@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 10:17 JST -->
+<!-- build 2026-10-22 10:20 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -408,8 +408,19 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   const prep = () => ROWS.forEach(r => { r.people = split(r.person); r.pics = pics(r); r.group = String(r.group || "").trim(); if (favPending.has(r.url)) r.fav = favPending.get(r.url); });
   prep();
   const $ = id => document.getElementById(id);
-  const state = {kind:"すべて", person:"すべて", group:"すべて", grouped:false, cards:false, favOnly:false, q:"", sort:"desc"};
+  // 種類・出演者・まとめは複数選べる（選んだものの配列。空なら「すべて」）
+  const state = {kind:[], person:[], group:[], grouped:false, cards:false, favOnly:false, q:"", sort:"desc"};
   try { Object.assign(state, JSON.parse(localStorage.getItem("seiyu-filter") || "{}")); } catch(e) {}
+  const SECS = ["kind", "person", "group"];
+  // 以前は1つだけ（文字列）で覚えていたので、配列に直す
+  SECS.forEach(s => { const v = state[s]; state[s] = Array.isArray(v) ? v : (v && v !== "すべて" ? [v] : []); });
+  const isOn = (sec, v) => v === "すべて" ? !state[sec].length : state[sec].includes(v);
+  // 「すべて」で選択を外す。それ以外は押すたびに付け外し
+  const pick = (sec, v) => {
+    if (v === "すべて") state[sec] = [];
+    else state[sec] = isOn(sec, v) ? state[sec].filter(x => x !== v) : state[sec].concat(v);
+    save(); render();
+  };
   const save = () => { try { localStorage.setItem("seiyu-filter", JSON.stringify(state)); } catch(e) {} };
   $("q").value = state.q; $("sort").value = state.sort;
   let editingRow = null;
@@ -447,7 +458,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       b.setAttribute("aria-expanded", String(!folded[sec]));
       // たたんでいても、選んでいるものが分かるように見出しの右に出す
       b.replaceChildren(SEC_NAMES[sec]);
-      if (state[sec] !== "すべて") b.append(el("span", {class:"sel", text:state[sec]}));
+      if (state[sec].length) b.append(el("span", {class:"sel", text:state[sec].join("・")}));
       b.onclick = () => { folded[sec] = !folded[sec]; try { localStorage.setItem("seiyu-fold", JSON.stringify(folded)); } catch(e) {} sideLabels(); };
     });
   }
@@ -479,15 +490,17 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       r.people.forEach(p => cnt.person[p] = (cnt.person[p] || 0) + 1);
       if (r.group) cnt.group[r.group] = (cnt.group[r.group] || 0) + 1;
     });
-    ["すべて", ...kindsInUse].forEach(k => kc.append(chip(k, state.kind === k, () => { state.kind = k; save(); render(); }, "", k === "すべて" ? ROWS.length : cnt.kind[k] || 0)));
+    state.kind = state.kind.filter(k => kindsInUse.includes(k));
+    ["すべて", ...kindsInUse].forEach(k => kc.append(chip(k, isOn("kind", k), () => pick("kind", k), "", k === "すべて" ? ROWS.length : cnt.kind[k] || 0)));
     const people = sortPeople([...new Set([].concat(...ROWS.map(r => r.people)))]);
-    if (state.person !== "すべて" && !people.includes(state.person)) state.person = "すべて";
+    // 一覧にもういない名前・まとめは選択から外す（読み込み中で0件のときは外さない）
+    if (ROWS.length) state.person = state.person.filter(p => people.includes(p));
     const pc = $("personChips"); pc.replaceChildren();
-    if (people.length) ["すべて", ...people].forEach(p => pc.append(chip(p, state.person === p, () => { state.person = p; save(); render(); }, p === "すべて" ? "出演者：" : "", p === "すべて" ? ROWS.length : cnt.person[p])));
+    if (people.length) ["すべて", ...people].forEach(p => pc.append(chip(p, isOn("person", p), () => pick("person", p), p === "すべて" ? "出演者：" : "", p === "すべて" ? ROWS.length : cnt.person[p])));
     const groups = allGroups();
-    if (state.group !== "すべて" && !groups.includes(state.group)) state.group = "すべて";
+    if (ROWS.length) state.group = state.group.filter(g => groups.includes(g));
     const gc = $("groupChips"); gc.replaceChildren();
-    if (groups.length) ["すべて", ...groups].forEach(g => gc.append(chip(g, state.group === g, () => { state.group = g; save(); render(); }, g === "すべて" ? "まとめ：" : "", g === "すべて" ? ROWS.length : cnt.group[g])));
+    if (groups.length) ["すべて", ...groups].forEach(g => gc.append(chip(g, isOn("group", g), () => pick("group", g), g === "すべて" ? "まとめ：" : "", g === "すべて" ? ROWS.length : cnt.group[g])));
     gc.hidden = !groups.length;
     $("groupLabel").hidden = !groups.length;
     sideLabels();
@@ -500,9 +513,10 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const q = state.q.trim().toLowerCase();
     const rows = ROWS.filter(r =>
       r.row === editingRow || (
-      (state.kind === "すべて" || r.kind === state.kind) &&
-      (state.person === "すべて" || r.people.includes(state.person)) &&
-      (state.group === "すべて" || r.group === state.group) &&
+      // 同じ欄の中で選んだものは「どれか」、欄どうしは「かつ」
+      (!state.kind.length || state.kind.includes(r.kind)) &&
+      (!state.person.length || r.people.some(p => state.person.includes(p))) &&
+      (!state.group.length || state.group.includes(r.group)) &&
       (!state.favOnly || r.fav) &&
       (!q || [r.title, r.memo, r.person, r.tags, r.url, r.service, r.group].join(" ").toLowerCase().includes(q)))
     ).sort((a,b) => {
@@ -606,7 +620,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     if (r.date) meta.append(el("span", {class:"plat mdate", text:r.date.replace(/-/g, "/")}));
     if (r.group) {
       const g = el("button", {class:"grp", type:"button", text:"まとめ：" + r.group, title:"このまとめだけ表示"});
-      g.onclick = () => { state.group = r.group; save(); render(); };
+      g.onclick = () => { state.group = [r.group]; save(); render(); };
       meta.append(g);
     }
     const body = el("div", {class:"body"}, meta, el("div", {class:"title"}, el("a", {href:safeUrl(r.url), target:"_blank", rel:"noopener", text:r.title || r.url})));
