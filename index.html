@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:10 JST -->
+<!-- build 2026-10-22 09:13 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -153,6 +153,8 @@ html,body{max-width:100%;overflow-x:hidden}
 @media (min-width:900px){
   /* スクロールバーが出たり消えたりしても幅が変わらないよう、いつも場所を空けておく */
   html,.side{scrollbar-gutter:stable}
+  /* overflow-x:hidden だと body がスクロールの箱扱いになり、左の欄・検索バーが上に貼り付かない。clip なら貼り付く */
+  html,body{overflow-x:clip}
   .wrap{max-width:none;padding:0;gap:0;grid-template-columns:260px minmax(0,1fr);align-items:start}
   .side{display:grid;align-content:start;gap:14px;position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:18px 12px 32px}
   .side header{display:grid;gap:8px;padding:0 6px}
