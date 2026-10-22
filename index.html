@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 10:20 JST -->
+<!-- build 2026-10-22 12:41 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -188,6 +188,12 @@ html,body{max-width:100%;overflow-x:hidden}
 .filters{order:2}
 .list{order:3}
 .side-label,.topbar,.chip .n{display:none}
+/* まとめの中の「シャニ」「それ以外」。スマホでは区切りの小さな文字だけ（押せない） */
+.gcat{flex:0 0 100%;border:0;background:transparent;padding:4px 2px 0;font:inherit;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-align:left;pointer-events:none}
+.gcat-items{display:contents}
+.gline{display:flex;gap:8px}
+.gline input{flex:1 1 auto;min-width:0}
+.edit .gline select.gcat-sel{flex:0 0 auto;width:auto}
 /* 1件ずつのカードは左の日付欄をなくし、日付はタグの右に（まとめカードは日付欄を残す） */
 .stub:not(.group){grid-template-columns:minmax(0,1fr)}
 .stub:not(.group)>.date{display:none}
@@ -208,6 +214,13 @@ html,body{max-width:100%;overflow-x:hidden}
   .side-label{display:flex;align-items:baseline;gap:6px;width:100%;margin:12px 0 4px;padding:7px 10px;border:0;border-radius:8px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));font:inherit;font-size:12px;font-weight:700;color:var(--ink);letter-spacing:.08em;text-align:left;cursor:pointer}
   .side-label:hover{background:color-mix(in srgb,var(--accent) 20%,var(--surface))}
   .filters .chips{padding-left:14px}
+  /* PC：まとめの中の「シャニ」「それ以外」は押すと開く・たたむ見出し。その中のまとめはさらに右へ */
+  .filters .gcat{flex:0 0 auto;display:flex;gap:6px;align-items:baseline;width:100%;margin-top:6px;padding:5px 10px;border-radius:8px;font-size:12px;color:var(--ink);cursor:pointer;pointer-events:auto}
+  .filters .gcat::before{content:"▾";display:inline-block;width:10px;color:var(--muted)}
+  .filters .gcat.folded::before{content:"▸"}
+  .filters .gcat:hover{background:var(--bg)}
+  .filters .gcat-items{display:flex;flex-direction:column;gap:1px;padding-left:14px}
+  .filters .gcat-items.folded{display:none}
   .side-label::before{content:"▾";display:inline-block;width:10px}
   .side-label.folded::before{content:"▸"}
   .side-label:hover{color:var(--ink)}
@@ -320,7 +333,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       withSuccessHandler: fn => runner(fn, ng),
       withFailureHandler: fn => runner(ok, fn)
     };
-    ["apiAdd", "apiUpdate", "apiDelete", "apiInfo", "apiRefreshImages", "apiFavorite"].forEach(name => {
+    ["apiAdd", "apiUpdate", "apiDelete", "apiInfo", "apiRefreshImages", "apiFavorite", "apiGroupCat"].forEach(name => {
       r[name] = (...args) => {
         fetch(API, { method: "POST", body: JSON.stringify({ action: name, key: args[0], args: args.slice(1) }) })
           .then(res => res.json())
@@ -500,7 +513,21 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const groups = allGroups();
     if (ROWS.length) state.group = state.group.filter(g => groups.includes(g));
     const gc = $("groupChips"); gc.replaceChildren();
-    if (groups.length) ["すべて", ...groups].forEach(g => gc.append(chip(g, isOn("group", g), () => pick("group", g), g === "すべて" ? "まとめ：" : "", g === "すべて" ? ROWS.length : cnt.group[g])));
+    if (groups.length) {
+      gc.append(chip("すべて", isOn("group", "すべて"), () => pick("group", "すべて"), "まとめ：", ROWS.length));
+      // シャニ／それ以外 に分けて並べる（見出しは PC では押すと開く・たたむだけ）
+      const cats = groupCatMap();
+      GROUP_CATS.forEach(cat => {
+        const list = groups.filter(g => cats[g] === cat);
+        if (!list.length) return;
+        const key = "gcat-" + cat;
+        const head = el("button", {type:"button", class:"gcat" + (folded[key] ? " folded" : ""), "aria-expanded":String(!folded[key]), text:cat});
+        head.onclick = () => { folded[key] = !folded[key]; try { localStorage.setItem("seiyu-fold", JSON.stringify(folded)); } catch(e) {} render(); };
+        const box = el("div", {class:"gcat-items" + (folded[key] ? " folded" : "")});
+        list.forEach(g => box.append(chip(g, isOn("group", g), () => pick("group", g), "", cnt.group[g])));
+        gc.append(head, box);
+      });
+    }
     gc.hidden = !groups.length;
     $("groupLabel").hidden = !groups.length;
     sideLabels();
@@ -563,6 +590,14 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     btn.hidden = false;
     btn.textContent = opened[key] ? "たたむ ▴" : "すべて表示 ▾";
     btn.onclick = () => { opened[key] = !opened[key]; clampRow(rowId, btnId, key); };
+  }
+
+  // まとめ名 → 分類（シャニ／それ以外）。サーバーが各行に付けて返す groupCat から作る
+  const GROUP_CATS = ["シャニ", "それ以外"];
+  function groupCatMap(){
+    const m = {};
+    ROWS.forEach(r => { if (r.group) m[r.group] = r.groupCat === "シャニ" ? "シャニ" : "それ以外"; });
+    return m;
   }
 
   function allGroups(){
@@ -721,6 +756,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const tags = el("input", {type:"text", id:id("tags"), placeholder:"スペース区切り"}); tags.value = r.tags;
     const memo = el("textarea", {id:id("memo")}); memo.value = r.memo;
     const group = el("input", {type:"text", id:id("group"), placeholder:"例：MSP day1"}); group.value = r.group;
+    const groupCat = groupCatSelect(group);
     const note = el("div", {class:"note"});
     const saveBtn = el("button", {class:"btn primary", type:"submit", text:"保存"});
     const cancel = el("button", {class:"btn", type:"button", text:"キャンセル"});
@@ -733,7 +769,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       castPicker(people),
       el("div", {class:"two"}, el("label", {text:"種類"}, kind), el("label", {text:"日付"}, date)),
       el("label", {text:"タグ（下の候補をタップで追加）"}, tags, tagPicker(tags)),
-      el("label", {text:"まとめ（同じイベントなどを1つにまとめる名前。空欄でも可）"}, group, groupPicker(group)),
+      el("label", {text:"まとめ（同じイベントなどを1つにまとめる名前。空欄でも可）・分類"}, groupLine(group, groupCat), groupPicker(group)),
       el("label", {text:"メモ"}, memo),
       el("div", {class:"acts"}, cancel, saveBtn),
       note
@@ -741,7 +777,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     form.addEventListener("submit", ev => {
       ev.preventDefault();
       saveBtn.disabled = true; cancel.disabled = true; note.className = "note"; note.textContent = "保存しています…";
-      const data = { title: title.value.trim(), person: split(people.value).join("、"), kind: kind.value, date: date.value, tags: tags.value.trim().split(/[\s　]+/).filter(Boolean).join(" "), memo: memo.value.trim(), group: group.value.trim() };
+      const data = { title: title.value.trim(), person: split(people.value).join("、"), kind: kind.value, date: date.value, tags: tags.value.trim().split(/[\s　]+/).filter(Boolean).join(" "), memo: memo.value.trim(), group: group.value.trim(), groupCat: group.value.trim() ? groupCat.value : "" };
       call("apiUpdate", [r.row, r.url, data], () => { editingRow = null; toast("保存しました"); }, msg => { note.className = "note err"; note.textContent = msg; saveBtn.disabled = false; cancel.disabled = false; });
     });
     return el("article", {class:"stub"}, dateCol(r), el("div", {class:"body"}, form));
@@ -935,6 +971,18 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     return box;
   }
 
+  // まとめの分類（シャニ／それ以外）の選択。既にあるまとめ名を入れたら、その今の分類を選ぶ
+  function groupCatSelect(input){
+    const sel = el("select", {"aria-label":"まとめの分類", class:"gcat-sel"});
+    GROUP_CATS.forEach(c => sel.append(el("option", {text:c})));
+    const sync = () => { const c = groupCatMap()[input.value.trim()]; if (c) sel.value = c; };
+    input.addEventListener("input", sync);
+    sel.value = "それ以外"; sync();
+    return sel;
+  }
+  // まとめの入力欄と分類の選択を横に並べる
+  const groupLine = (input, sel) => el("div", {class:"gline"}, input, sel);
+
   function groupPicker(input){
     const box = el("div", {class:"tagpick"});
     const draw = () => {
@@ -942,7 +990,8 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       const cur = input.value.trim();
       allGroups().slice(0, 12).forEach(g => {
         const b = el("button", {type:"button", "aria-pressed":String(cur === g), text:g});
-        b.onclick = () => { input.value = cur === g ? "" : g; draw(); };
+        // input を知らせて、候補の表示と分類（シャニ／それ以外）の選択を両方そろえる
+        b.onclick = () => { input.value = cur === g ? "" : g; input.dispatchEvent(new Event("input")); };
         box.append(b);
       });
     };
@@ -1004,6 +1053,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     const date = el("input", {type:"date", id:"a-date"}); date.value = today();
     const tags = el("input", {type:"text", id:"a-tags", placeholder:"スペース区切り"});
     const group = el("input", {type:"text", id:"a-group", placeholder:"例：MSP day1"});
+    const groupCat = groupCatSelect(group);
     const memo = el("textarea", {id:"a-memo"});
     const saved = el("div", {class:"saved-note"}); saved.hidden = true;
     const note = el("div", {class:"note"});
@@ -1061,7 +1111,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       castPicker(people),
       el("div", {class:"two"}, el("label", {text:"種類"}, kind), el("label", {text:"日付"}, date)),
       el("label", {text:"タグ（下の候補をタップで追加）"}, tags, tagPicker(tags)),
-      el("label", {text:"まとめ（空欄でも可）"}, group, groupPicker(group)),
+      el("label", {text:"まとめ（空欄でも可）・分類"}, groupLine(group, groupCat), groupPicker(group)),
       el("label", {text:"メモ"}, memo),
       el("div", {class:"acts"}, cancel, saveBtn),
       note
@@ -1072,7 +1122,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       if (!/^https?:\/\//.test(u)) { note.className = "note err"; note.textContent = "http:// か https:// で始まるURLを入れてください"; return; }
       saveBtn.disabled = true; cancel.disabled = true; note.className = "note"; note.textContent = "保存しています…";
       const data = { url: u, title: title.value.trim(), person: split(people.value).join("、"), kind: kind.value, date: date.value,
-                     tags: tags.value.trim().split(/[\s　]+/).filter(Boolean), memo: memo.value.trim(), force: force, images: images, group: group.value.trim() };
+                     tags: tags.value.trim().split(/[\s　]+/).filter(Boolean), memo: memo.value.trim(), force: force, images: images, group: group.value.trim(), groupCat: group.value.trim() ? groupCat.value : "" };
       google.script.run.withSuccessHandler(res => {
         saveBtn.disabled = false; cancel.disabled = false;
         if (res && res.ok) {
