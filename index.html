@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:27 JST -->
+<!-- build 2026-10-22 09:29 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -656,6 +656,10 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       const now = ++shown;
       let img = el("img", {src:p.full, alt:"", referrerpolicy:"no-referrer"});
       img.onerror = () => { if (img.src !== p.thumb) img.src = p.thumb; };
+      // 画像の左半分を押すと前、右半分で次（矢印のカーソルで示す）
+      const side = e => { const b = img.getBoundingClientRect(); return e.clientX < b.left + b.width / 2 ? -1 : 1; };
+      img.onmousemove = e => { const d = side(e); img.style.cursor = (d < 0 ? i > 0 : i < items.length - 1) ? (d < 0 ? "w-resize" : "e-resize") : "default"; };
+      img.onclick = e => { e.stopPropagation(); go(side(e)); };
       const note = el("div", {class:"lb-note"});
       if (p.yt) {
         img = el("iframe", {class:"lb-yt", src:"https://www.youtube-nocookie.com/embed/" + p.yt + "?autoplay=1&playsinline=1", allow:"autoplay; encrypted-media; fullscreen; picture-in-picture", allowfullscreen:"", referrerpolicy:"strict-origin-when-cross-origin", title:"YouTube"});
