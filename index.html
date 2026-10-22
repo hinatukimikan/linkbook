@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:29 JST -->
+<!-- build 2026-10-22 09:33 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -122,7 +122,11 @@ html,body{max-width:100%;overflow-x:hidden}
 .lightbox video{max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;background:#000}
 .lightbox .lb-yt{width:min(100%,calc((100vh - 120px) * 16 / 9));aspect-ratio:16/9;height:auto;border:0;border-radius:6px;background:#000}
 .lightbox .lb-cap{position:fixed;left:16px;right:16px;top:14px;text-align:center;color:#fff;font-size:13px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lightbox .lb-bar button[disabled]{opacity:.3;cursor:default}
+.lightbox .lb-nav{position:fixed;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;font:inherit;font-size:36px;line-height:50px;padding:0 0 4px;text-align:center;cursor:pointer;z-index:1}
+.lightbox .lb-nav:hover{background:rgba(255,255,255,.25)}
+.lightbox .lb-prev{left:24px}
+.lightbox .lb-next{right:24px}
+@media (max-width:600px){.lightbox .lb-nav{width:40px;height:40px;font-size:26px;line-height:36px}.lightbox .lb-prev{left:6px}.lightbox .lb-next{right:6px}}
 .lightbox .lb-note{position:fixed;left:0;right:0;bottom:62px;text-align:center;color:#fff;font-size:13px;opacity:.85}
 .lightbox .lb-note:empty{display:none}
 .thumbs .pic.play::after{content:"▶";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(10,8,16,.6);color:#fff;font-size:14px;line-height:34px;text-align:center;padding-left:3px;box-sizing:border-box;pointer-events:none}
@@ -677,14 +681,15 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       const k = r.pics.indexOf(p);
       const cap = el("div", {class:"lb-cap", text:(r.person ? r.people.join("・") + "　" : "") + (r.title || r.url) + (r.pics.length > 1 ? "（" + (k + 1) + " / " + r.pics.length + "）" : "")});
       const bar = el("div", {class:"lb-bar"});
-      const prev = el("button", {type:"button", text:"‹ 前"}); prev.onclick = e => { e.stopPropagation(); go(-1); };
-      const next = el("button", {type:"button", text:"次 ›"}); next.onclick = e => { e.stopPropagation(); go(1); };
-      prev.disabled = i === 0; next.disabled = i === items.length - 1;
+      // 前・次は画面の左右の端に矢印だけで出す（端まで来たら出さない）
+      const prev = el("button", {type:"button", class:"lb-nav lb-prev", "aria-label":"前の画像", text:"‹"}); prev.onclick = e => { e.stopPropagation(); go(-1); };
+      const next = el("button", {type:"button", class:"lb-nav lb-next", "aria-label":"次の画像", text:"›"}); next.onclick = e => { e.stopPropagation(); go(1); };
+      prev.hidden = i === 0; next.hidden = i === items.length - 1;
       const orig = el("a", {href:safeUrl(r.url), target:"_blank", rel:"noopener", text:"元の投稿を開く"});
       orig.onclick = e => e.stopPropagation();
       const close = el("button", {type:"button", text:"閉じる"});
-      bar.append(prev, orig, close, next);
-      lb.replaceChildren(cap, img, note, bar);
+      bar.append(orig, close);
+      lb.replaceChildren(cap, img, note, prev, next, bar);
     };
     lb.onclick = e => { if (e.target === lb || e.target.textContent === "閉じる") closeLightbox(); };
     draw();
