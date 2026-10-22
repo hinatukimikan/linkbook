@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:09 JST -->
+<!-- build 2026-10-22 09:10 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -145,7 +145,10 @@ html,body{max-width:100%;overflow-x:hidden}
 #addArea{order:1}
 .filters{order:2}
 .list{order:3}
-.side-label,.topbar,.chip .n,.meta .mdate{display:none}
+.side-label,.topbar,.chip .n{display:none}
+/* 1件ずつのカードは左の日付欄をなくし、日付はタグの右に（まとめカードは日付欄を残す） */
+.stub:not(.group){grid-template-columns:minmax(0,1fr)}
+.stub:not(.group)>.date{display:none}
 /* PC：左に絞り込み、右に一覧 */
 @media (min-width:900px){
   /* スクロールバーが出たり消えたりしても幅が変わらないよう、いつも場所を空けておく */
@@ -176,10 +179,6 @@ html,body{max-width:100%;overflow-x:hidden}
   .main>*{min-width:0;width:100%;max-width:960px}
   .topbar{display:block;position:sticky;top:0;z-index:2;background:var(--bg);padding:14px 0 12px;border-bottom:1px solid var(--line)}
   .topbar .search{flex-wrap:nowrap}
-  /* 1件ずつのカードは左の日付欄をなくし、日付はタグの右に（まとめカードは日付欄を残す） */
-  .stub:not(.group){grid-template-columns:minmax(0,1fr)}
-  .stub:not(.group)>.date{display:none}
-  .meta .mdate{display:inline}
 }
 
 /* GitHub Pages 版のみ */
@@ -546,7 +545,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     r.people.forEach(p => meta.append(el("span", {class:"person", text:p})));
     if (r.service) meta.append(el("span", {class:"plat", text:r.service}));
     (r.tags || "").split(/\s+/).filter(Boolean).forEach(t => meta.append(el("span", {class:"plat", text:"#" + t})));
-    // PC では左の日付欄の代わりに、タグの右に日付を出す
+    // 左の日付欄の代わりに、タグの右に日付を出す
     if (r.date) meta.append(el("span", {class:"plat mdate", text:r.date.replace(/-/g, "/")}));
     if (r.group) {
       const g = el("button", {class:"grp", type:"button", text:"まとめ：" + r.group, title:"このまとめだけ表示"});
