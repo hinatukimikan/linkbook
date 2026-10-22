@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 12:58 JST -->
+<!-- build 2026-10-22 12:59 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -151,6 +151,7 @@ html,body{max-width:100%;overflow-x:hidden}
 .tile-line>:last-child{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .tile-line>:empty{display:none}
 .tile-line .grp{line-height:18px;white-space:nowrap}
+.tile-line .g-narrow{display:none;flex:0 1 auto;min-width:0;max-width:60%;overflow:hidden;text-overflow:ellipsis}
 .btn.fav{color:var(--muted);font-size:13px;line-height:1.2}
 .btn.fav.on{color:var(--accent);border-color:var(--accent)}
 .tile-media .fav{position:absolute;top:6px;left:6px;width:28px;height:28px;padding:0;border-radius:50%;background:rgba(10,8,16,.55);border-color:rgba(255,255,255,.35);color:#fff;font-size:15px}
@@ -160,7 +161,7 @@ html,body{max-width:100%;overflow-x:hidden}
 .tile-media .acts .btn{padding:1px 9px;font-size:11px;background:rgba(10,8,16,.55);border-color:rgba(255,255,255,.35);color:#fff}
 .tile-media .acts .btn.danger{background:var(--accent);border-color:var(--accent)}
 @media (hover:hover){.tile .acts{opacity:0;transition:opacity .15s}.tile:hover .acts,.tile:focus-within .acts{opacity:1}}
-@media (max-width:600px){#list.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile-body{padding:7px 9px 9px}.tile-title{font-size:13px}.tile-line{gap:6px;font-size:11px}.tile-line .y{display:none}}
+@media (max-width:600px){#list.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile-body{padding:7px 9px 9px}.tile-title{font-size:13px}.tile-line{gap:6px;font-size:11px}.tile-line .g-wide{display:none}.tile-line .g-narrow{display:inline-block}}
 .pic.play::after,.thumbs .pic.play::after{content:"▶";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(10,8,16,.6);color:#fff;font-size:14px;line-height:34px;text-align:center;padding-left:3px;box-sizing:border-box;pointer-events:none}
 .lightbox .lb-bar{position:fixed;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:10px}
 .lightbox .lb-bar button,.lightbox .lb-bar a{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:7px 16px;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
@@ -684,17 +685,18 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     // お気に入りは画像の左上、編集・削除は右上に重ねる（カードの大きさをそろえるため）
     media.append(favBtn(r), actBtns(r));
     // 1行目：タイトル　2行目：種類・日付　3行目：サイト名・出演者（どれも1行に収め、はみ出しは …）
-    // 日付の年はスマホでは省く（まとめ名の幅を空けるため）
-    const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(r.date || "");
-    const dateEl = d ? el("span", {class:"plat"}, el("span", {class:"y", text:d[1] + "/"}), d[2] + "/" + d[3]) : el("span", {class:"plat", text:r.date || "日付なし"});
-    const line2 = el("div", {class:"tile-line"}, el("span", {class:"kind", "data-k":r.kind, text:r.kind || "その他"}), dateEl);
-    // 日付の右にまとめ名（押すとそのまとめだけ表示。長いときは …）
-    if (r.group) {
-      const g = el("button", {class:"grp", type:"button", text:r.group, title:"まとめ：" + r.group + "（このまとめだけ表示）"});
-      g.onclick = () => { state.group = [r.group]; save(); render(); };
-      line2.append(g);
-    }
+    const line2 = el("div", {class:"tile-line"}, el("span", {class:"kind", "data-k":r.kind, text:r.kind || "その他"}), el("span", {class:"plat", text:r.date ? r.date.replace(/-/g, "/") : "日付なし"}));
     const line3 = el("div", {class:"tile-line"}, el("span", {class:"plat", text:r.service || ""}), el("span", {class:"person", text:r.people.join("・")}));
+    // まとめ名（押すとそのまとめだけ表示。長いときは …）。PC は日付の右、スマホは3行目の先頭（どちらか一方を CSS で出す）
+    if (r.group) {
+      const grp = cls => {
+        const g = el("button", {class:"grp " + cls, type:"button", text:r.group, title:"まとめ：" + r.group + "（このまとめだけ表示）"});
+        g.onclick = () => { state.group = [r.group]; save(); render(); };
+        return g;
+      };
+      line2.append(grp("g-wide"));
+      line3.prepend(grp("g-narrow"));
+    }
     const body = el("div", {class:"tile-body"}, el("a", {class:"tile-title", href:safeUrl(r.url), target:"_blank", rel:"noopener", text:r.title || r.url, title:r.title || r.url}), line2, line3);
     return el("article", {class:"tile"}, media, body);
   }
