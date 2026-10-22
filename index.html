@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:36 JST -->
+<!-- build 2026-10-22 09:41 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -131,7 +131,24 @@ html,body{max-width:100%;overflow-x:hidden}
 @media (max-width:600px){.lightbox .lb-nav{width:56px;padding:0 6px}.lightbox .lb-nav span{width:40px;height:40px;font-size:26px;line-height:36px}}
 .lightbox .lb-note{position:fixed;left:0;right:0;bottom:62px;text-align:center;color:#fff;font-size:13px;opacity:.85}
 .lightbox .lb-note:empty{display:none}
-.thumbs .pic.play::after{content:"▶";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(10,8,16,.6);color:#fff;font-size:14px;line-height:34px;text-align:center;padding-left:3px;box-sizing:border-box;pointer-events:none}
+/* カード表示：画像が上、タイトルと情報が下のカードを並べる */
+#list.cards{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));align-items:start}
+#list.cards>.stub,#list.cards>.empty{grid-column:1/-1}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;min-width:0}
+.tile-media{position:relative;background:var(--line)}
+.tile-media .pic{position:relative;display:block;cursor:zoom-in}
+.tile-media .pic::before{content:"";display:block;padding-top:56.25%}
+.tile-media .pic img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block}
+.tile-noimg{display:grid;place-items:center;aspect-ratio:16/9;color:var(--muted);font-family:var(--f-mono);font-size:13px}
+.tile-more{position:absolute;right:8px;bottom:8px;background:rgba(10,8,16,.6);color:#fff;border-radius:999px;padding:1px 9px;font-size:12px;pointer-events:none}
+.tile-body{padding:10px 12px 12px;display:grid;gap:6px;min-width:0}
+.tile-title{color:var(--ink);text-decoration:none;font-weight:700;font-size:14px;line-height:1.5;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.tile-title:hover{color:var(--accent)}
+.tile-meta{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;font-size:12px}
+.tile .acts .btn{padding:1px 10px;font-size:11px}
+@media (hover:hover){.tile .acts{opacity:0;transition:opacity .15s}.tile:hover .acts,.tile:focus-within .acts{opacity:1}}
+@media (max-width:600px){#list.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile-body{padding:8px 9px 10px}.tile-title{font-size:13px}}
+.pic.play::after,.thumbs .pic.play::after{content:"▶";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(10,8,16,.6);color:#fff;font-size:14px;line-height:34px;text-align:center;padding-left:3px;box-sizing:border-box;pointer-events:none}
 .lightbox .lb-bar{position:fixed;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:10px}
 .lightbox .lb-bar button,.lightbox .lb-bar a{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:7px 16px;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
 .add-thumbs{display:flex;gap:6px;flex-wrap:wrap}
@@ -233,6 +250,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     <button class="more" type="button" id="groupMore" hidden></button>
     <div class="search" id="searchRow">
       <button class="chip toggle" type="button" id="groupToggle" aria-pressed="false">まとめて表示</button>
+      <button class="chip toggle" type="button" id="cardToggle" aria-pressed="false">カード表示</button>
       <input id="q" type="search" placeholder="タイトル・メモ・タグで検索">
       <select id="sort" aria-label="並び順"><option value="desc">新しい順</option><option value="asc">古い順</option></select>
     </div>
@@ -369,7 +387,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   const prep = () => ROWS.forEach(r => { r.people = split(r.person); r.pics = pics(r); r.group = String(r.group || "").trim(); });
   prep();
   const $ = id => document.getElementById(id);
-  const state = {kind:"すべて", person:"すべて", group:"すべて", grouped:false, q:"", sort:"desc"};
+  const state = {kind:"すべて", person:"すべて", group:"すべて", grouped:false, cards:false, q:"", sort:"desc"};
   try { Object.assign(state, JSON.parse(localStorage.getItem("seiyu-filter") || "{}")); } catch(e) {}
   const save = () => { try { localStorage.setItem("seiyu-filter", JSON.stringify(state)); } catch(e) {} };
   $("q").value = state.q; $("sort").value = state.sort;
@@ -453,6 +471,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     $("groupLabel").hidden = !groups.length;
     sideLabels();
     $("groupToggle").setAttribute("aria-pressed", String(state.grouped));
+    $("cardToggle").setAttribute("aria-pressed", String(state.cards));
     clampRow("personChips", "personMore", "people");
     clampRow("groupChips", "groupMore", "groups");
 
@@ -470,10 +489,13 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
 
     $("count").textContent = ROWS.length ? rows.length + " / " + ROWS.length + " 件" : "0 件";
     const list = $("list"); list.replaceChildren();
+    list.classList.toggle("cards", state.cards);
+    // 1件分：編集中なら編集フォーム、カード表示ならカード、それ以外は今までの横長の形
+    const one = r => r.row === editingRow ? editor(r) : state.cards ? tile(r) : stub(r);
     if (!ROWS.length && window.LINKBOOK_LOADING) { list.append(el("div", {class:"empty"}, el("strong", {text:"読み込んでいます…"}), document.createTextNode("少しお待ちください。"))); return; }
     if (!ROWS.length) { list.append(el("div", {class:"empty"}, el("strong", {text:"まだリンクがありません"}), document.createTextNode("Chrome で保存したリンクがここに並びます。"))); return; }
     if (!rows.length) { list.append(el("div", {class:"empty"}, el("strong", {text:"条件に合うリンクがありません"}), document.createTextNode("絞り込みや検索語を変えてみてください。"))); return; }
-    if (!state.grouped) { rows.forEach(r => list.append(r.row === editingRow ? editor(r) : stub(r))); return; }
+    if (!state.grouped) { rows.forEach(r => list.append(one(r))); return; }
 
     // まとめて表示：同じまとめ名の投稿を1枚のカードに（並び順は先頭の投稿の位置）
     const items = [], byName = new Map();
@@ -484,8 +506,8 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       } else items.push({ one: r });
     });
     items.forEach(it => {
-      if (it.one) list.append(it.one.row === editingRow ? editor(it.one) : stub(it.one));
-      else if (it.entries.length === 1) list.append(stub(it.entries[0]));
+      if (it.one) list.append(one(it.one));
+      else if (it.entries.length === 1) list.append(one(it.entries[0]));
       else list.append(groupCard(it.name, it.entries));
     });
   }
@@ -572,6 +594,28 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
     }
     if (r.memo) body.append(el("div", {class:"memo", text:r.memo}));
 
+    meta.append(actBtns(r));   // 編集・削除は1行目の右端に（写真の下に余白を作らない）
+    return el("article", {class:"stub"}, dateCol(r), body);
+  }
+
+  // カード表示の1枚：上に画像（1枚目）、下にタイトルと情報
+  function tile(r){
+    const media = el("div", {class:"tile-media"});
+    if (r.pics.length) {
+      // 2枚目以降は拡大表示で前後に移るためだけに置いておく（隠して読み込まない）
+      r.pics.forEach((p, k) => media.append(thumbEl(p, r, k > 0)));
+      if (r.pics.length > 1) media.append(el("span", {class:"tile-more", text:"+" + (r.pics.length - 1)}));
+    } else media.append(el("div", {class:"tile-noimg", text:r.service || "画像なし"}));
+    const meta = el("div", {class:"tile-meta"}, el("span", {class:"kind", "data-k":r.kind, text:r.kind || "その他"}));
+    r.people.forEach(p => meta.append(el("span", {class:"person", text:p})));
+    const sub = [r.service, r.date && r.date.replace(/-/g, "/")].filter(Boolean).join(" · ");
+    if (sub) meta.append(el("span", {class:"plat", text:sub}));
+    const body = el("div", {class:"tile-body"}, el("a", {class:"tile-title", href:safeUrl(r.url), target:"_blank", rel:"noopener", text:r.title || r.url}), meta, actBtns(r));
+    return el("article", {class:"tile"}, media, body);
+  }
+
+  // 編集・削除ボタン（削除は2回押しで確定）
+  function actBtns(r){
     const edit = el("button", {class:"btn", type:"button", text:"編集"});
     edit.onclick = () => { editingRow = r.row; render(); };
     const del = el("button", {class:"btn", type:"button", text:"削除"});
@@ -585,8 +629,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       clearTimeout(armed); del.disabled = true; edit.disabled = true; del.textContent = "削除しています…";
       call("apiDelete", [r.row, r.url], () => toast("削除しました"), msg => { toast(msg); del.disabled = false; edit.disabled = false; del.textContent = "削除"; del.classList.remove("danger"); armed = null; });
     };
-    meta.append(el("div", {class:"acts card-acts"}, edit, del));   // 編集・削除は1行目の右端に（写真の下に余白を作らない）
-    return el("article", {class:"stub"}, dateCol(r), body);
+    return el("div", {class:"acts card-acts"}, edit, del);
   }
 
   function editor(r){
@@ -635,14 +678,16 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       .apiRefreshImages(KEY, row, url);
   }
 
-  // サムネイル1枚分（タップで拡大）。r はその画像の投稿
-  function thumbEl(p, r){
-    const img = el("img", {src:p.thumb, alt:"", referrerpolicy:"no-referrer", decoding:"async"});
+  // サムネイル1枚分（タップで拡大）。r はその画像の投稿。hidden なら隠して読み込まない
+  function thumbEl(p, r, hidden){
+    // loading は src より先に付けないと読み込みが始まってしまう
+    const img = el("img", Object.assign(hidden ? {loading:"lazy"} : {}, {src:p.thumb, alt:"", referrerpolicy:"no-referrer", decoding:"async"}));
     const video = p.yt || p.xvideo;
     const b = el("div", {class:"pic" + (p.wide ? " wide" : "") + (video ? " play" : ""), role:"button", tabindex:"0", "aria-label":video ? "動画を再生" : "画像を大きく表示"}, img);
     img.onerror = () => { b.remove(); if (p.row) refreshImages(p.row, p.src); };
     b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); b.click(); } });
     b.lbItem = { p: p, r: r };
+    b.hidden = !!hidden;
     b.onclick = () => openLightbox(b);
     return b;
   }
@@ -977,6 +1022,7 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   if (ADD_URL) openAdd(ADD_URL);
 
   $("groupToggle").addEventListener("click", () => { state.grouped = !state.grouped; save(); render(); });
+  $("cardToggle").addEventListener("click", () => { state.cards = !state.cards; save(); render(); });
   $("q").addEventListener("input", () => { state.q = $("q").value; save(); render(); });
   $("sort").addEventListener("change", () => { state.sort = $("sort").value; save(); render(); });
   render();
