@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:55 JST -->
+<!-- build 2026-10-22 09:57 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -132,7 +132,8 @@ html,body{max-width:100%;overflow-x:hidden}
 .lightbox .lb-note{position:fixed;left:0;right:0;bottom:62px;text-align:center;color:#fff;font-size:13px;opacity:.85}
 .lightbox .lb-note:empty{display:none}
 /* カード表示：画像が上、タイトルと情報が下のカードを並べる */
-#list.cards{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));align-items:stretch}
+/* 1枚 240px 以上で入るだけ並べる。ただし最大5列（間隔12px×4 を引いた幅の 1/5 より細くしない） */
+#list.cards{grid-template-columns:repeat(auto-fill,minmax(max(240px,calc((100% - 48px) / 5)),1fr));align-items:stretch}
 #list.cards>.stub,#list.cards>.empty{grid-column:1/-1}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;min-width:0}
 .tile-media{position:relative;background:var(--line)}
