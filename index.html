@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<!-- build 2026-10-22 09:13 JST -->
+<!-- build 2026-10-22 09:21 JST -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
@@ -119,6 +119,11 @@ html,body{max-width:100%;overflow-x:hidden}
 [hidden]{display:none !important}
 .lightbox{position:fixed;inset:0;z-index:10;background:rgba(10,8,16,.92);display:grid;place-items:center;padding:16px}
 .lightbox img{max-width:100%;max-height:calc(100vh - 120px);object-fit:contain;border-radius:6px}
+.lightbox video{max-width:100%;max-height:calc(100vh - 120px);border-radius:6px;background:#000}
+.lightbox .lb-yt{width:min(100%,calc((100vh - 120px) * 16 / 9));aspect-ratio:16/9;height:auto;border:0;border-radius:6px;background:#000}
+.lightbox .lb-note{position:fixed;left:0;right:0;bottom:62px;text-align:center;color:#fff;font-size:13px;opacity:.85}
+.lightbox .lb-note:empty{display:none}
+.thumbs .pic.play::after{content:"▶";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(10,8,16,.6);color:#fff;font-size:14px;line-height:34px;text-align:center;padding-left:3px;box-sizing:border-box;pointer-events:none}
 .lightbox .lb-bar{position:fixed;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:10px}
 .lightbox .lb-bar button,.lightbox .lb-bar a{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:7px 16px;font:inherit;font-size:13px;text-decoration:none;cursor:pointer}
 .add-thumbs{display:flex;gap:6px;flex-wrap:wrap}
@@ -342,14 +347,16 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       return x.href;
     } catch (e) { return u; }
   };
+  const X_VIDEO_THUMB = /pbs\.twimg\.com\/(ext_tw_video_thumb|amplify_video_thumb|tweet_video_thumb)\//;
   // カードに出す画像：YouTube はサムネイル、それ以外は保存した画像URL
   const pics = r => {
     const id = ytId(r.url);
-    if (id) return [{ thumb: "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg", full: "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg", wide: true }];
+    if (id) return [{ thumb: "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg", full: "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg", wide: true, yt: id, src: r.url }];
     const list = String(r.images || "").split(/\s+/).filter(u => /^https:\/\//.test(u) && !/static\.cdninstagram\.com|\/rsrc\.php\//.test(u));
     // 出演動画・配信のサムネイル（1枚だけのもの）は横長で表示
     const wide = list.length === 1 && (r.kind === "出演動画" || r.kind === "配信・生放送");
-    return list.map(u => ({ thumb: twSize(u, "small"), full: twSize(u, "large"), wide: wide, row: r.row, src: r.url }));
+    // X の動画・GIF のサムネイルは、拡大表示で動画を流す
+    return list.map(u => ({ thumb: twSize(u, "small"), full: twSize(u, "large"), wide: wide, row: r.row, src: r.url, xvideo: X_VIDEO_THUMB.test(u) }));
   };
   const prep = () => ROWS.forEach(r => { r.people = split(r.person); r.pics = pics(r); r.group = String(r.group || "").trim(); });
   prep();
@@ -632,7 +639,8 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   // サムネイル1枚分（タップで拡大）
   function thumbEl(p){
     const img = el("img", {src:p.thumb, alt:"", referrerpolicy:"no-referrer", decoding:"async"});
-    const b = el("div", {class:"pic" + (p.wide ? " wide" : ""), role:"button", tabindex:"0", "aria-label":"画像を大きく表示"}, img);
+    const video = p.yt || p.xvideo;
+    const b = el("div", {class:"pic" + (p.wide ? " wide" : "") + (video ? " play" : ""), role:"button", tabindex:"0", "aria-label":video ? "動画を再生" : "画像を大きく表示"}, img);
     img.onerror = () => { b.remove(); if (p.row) refreshImages(p.row, p.src); };
     b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); b.click(); } });
     return b;
@@ -642,10 +650,25 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
   function openLightbox(r, index){
     const lb = $("lightbox");
     let i = index;
+    let shown = 0;
     const draw = () => {
       const p = r.pics[i];
-      const img = el("img", {src:p.full, alt:"", referrerpolicy:"no-referrer"});
+      const now = ++shown;
+      let img = el("img", {src:p.full, alt:"", referrerpolicy:"no-referrer"});
       img.onerror = () => { if (img.src !== p.thumb) img.src = p.thumb; };
+      const note = el("div", {class:"lb-note"});
+      if (p.yt) {
+        img = el("iframe", {class:"lb-yt", src:"https://www.youtube-nocookie.com/embed/" + p.yt + "?autoplay=1&playsinline=1", allow:"autoplay; encrypted-media; fullscreen; picture-in-picture", allowfullscreen:"", referrerpolicy:"strict-origin-when-cross-origin", title:"YouTube"});
+      } else if (p.xvideo) {
+        note.textContent = "動画を読み込んでいます…";
+        xVideo(p.src || p.url || r.url, p.full).then(v => {
+          if (now !== shown || lb.hidden) return;
+          const video = el("video", {src:v.url, poster:p.full, controls:"", autoplay:"", playsinline:""});
+          if (v.gif) { video.muted = true; video.loop = true; }
+          img.replaceWith(video);
+          note.remove();
+        }).catch(() => { if (now === shown) note.textContent = "動画を読み込めませんでした。「元の投稿を開く」で見てください"; });
+      }
       const bar = el("div", {class:"lb-bar"});
       if (r.pics.length > 1) {
         const prev = el("button", {type:"button", text:"‹ 前"}); prev.onclick = e => { e.stopPropagation(); i = (i - 1 + r.pics.length) % r.pics.length; draw(); };
@@ -656,13 +679,26 @@ html.offline .count::after{content:"・オフライン（前回の内容）";col
       orig.onclick = e => e.stopPropagation();
       const close = el("button", {type:"button", text:"閉じる"});
       bar.append(orig, close);
-      lb.replaceChildren(img, bar);
+      lb.replaceChildren(img, note, bar);
     };
     lb.onclick = e => { if (e.target === lb || e.target.textContent === "閉じる") { lb.hidden = true; lb.replaceChildren(); } };
     draw();
     lb.hidden = false;
   }
   document.addEventListener("keydown", e => { if (e.key === "Escape") { $("lightbox").hidden = true; $("lightbox").replaceChildren(); } });
+
+  // X の動画の mp4 を FxTwitter から取る（サムネイルが一致するもの。1本だけならそれ）
+  function xVideo(url, thumb){
+    const id = (String(url).match(/\/status\/(\d+)/) || [])[1];
+    if (!id) return Promise.reject();
+    const key = u => String(u || "").replace(/[?#].*$/, "").replace(/\.\w+$/, "");
+    return fetch("https://api.fxtwitter.com/status/" + id).then(res => res.json()).then(j => {
+      const vids = ((j.tweet && j.tweet.media && j.tweet.media.videos) || []).filter(v => /^https:\/\//.test(v.url || ""));
+      const v = vids.find(v => key(v.thumbnail_url) === key(thumb)) || (vids.length === 1 ? vids[0] : null);
+      if (!v) throw new Error("no video");
+      return { url: v.url, gif: v.type === "gif" };
+    });
+  }
 
   // ---------- タグ候補（過去に使ったタグをタップで出し入れ） ----------
   function allTags(){
